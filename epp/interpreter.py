@@ -316,6 +316,15 @@ class Interpreter:
         self._check_number(radius, "circle radius", node.line)
         self._get_visuals(node.line).turtle_circle(int(radius))
 
+    # ── Game Statements ───────────────────────────────────────────────
+
+    def _exec_StartGameStmt(self, node: ast.StartGameStmt, env: Environment) -> None:
+        from .game import launch_game
+        root = None
+        if self._visuals and self._visuals._root:
+            root = self._visuals._root
+        launch_game(interpreter=self, root=root)
+
     # ── Function Calling ─────────────────────────────────────────────
 
     def call_function(self, name: str, arg_nodes: list[object], env: Environment, line: int) -> object:

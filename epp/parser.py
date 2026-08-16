@@ -16,6 +16,7 @@ STMT_KEYWORDS = {
     "if", "otherwise", "end", "while", "repeat",
     "say", "ask", "define", "call", "return", "note",
     "open", "move", "turn", "pen", "draw", "wait", "clear", "shuffle",
+    "start",
 }
 
 
@@ -425,6 +426,8 @@ class Parser:
             self.expect_word("buttons")
             self.skip_period()
             return ast.ShuffleButtonsStmt(line)
+        elif word == "start":
+            return self._parse_start(line)
         else:
             raise EppParseError(f"unknown statement '{tok.value}'", line)
 
@@ -880,6 +883,19 @@ class Parser:
         self.expect_word("window")
         self.skip_period()
         return ast.ClearWindowStmt(line)
+
+
+    def _parse_start(self, line: int) -> ast.StartGameStmt:
+        """Start a jump and run game."""
+        self.advance()  # start
+        # Expect: a jump and run game
+        self.expect_word("a")
+        self.expect_word("jump")
+        self.expect_word("and")
+        self.expect_word("run")
+        self.expect_word("game")
+        self.skip_period()
+        return ast.StartGameStmt("jump and run", line)
 
 
 def parse(tokens: list[Token]) -> list[object]:

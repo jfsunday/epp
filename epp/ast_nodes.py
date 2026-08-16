@@ -277,3 +277,11 @@ class SetTextColorStmt:
 class SetFontSizeStmt:
     size: Any
     line: int
+
+
+# ── Game Statements ───────────────────────────────────────────────────
+
+@dataclass
+class StartGameStmt:
+    game_type: str  # "jump and run"
+    line: int

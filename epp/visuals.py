@@ -31,11 +31,14 @@ class Visuals:
         self._frame = None
         self._bg_color = _DEFAULT_BG
         self._text_color = _DEFAULT_FG
+        self._base_font_size = _DEFAULT_FONT_SIZE
         self._font_size = _DEFAULT_FONT_SIZE
         self._font_family = None  # resolved on first use
         self._btn_bg = _DEFAULT_BTN_BG
         self._btn_fg = _DEFAULT_BTN_FG
         self._accent = _DEFAULT_ACCENT
+        self._base_width = 600  # reference width for scaling
+        self._widgets: list = []  # track widgets for responsive updates
 
     def _resolve_font(self):
         """Pick the first available font family."""
@@ -67,6 +70,7 @@ class Visuals:
         self._root.configure(bg=self._bg_color)
         self._frame = tk.Frame(self._root, bg=self._bg_color)
         self._frame.pack(fill="both", expand=True, padx=20, pady=15)
+        self._root.bind("<Configure>", self._on_resize)
 
     def _ensure_turtle(self):
         if self._turtle is not None:
@@ -84,6 +88,32 @@ class Visuals:
         self._turtle = turtle.RawTurtle(screen)
         self._turtle.speed(3)
         self._turtle.pencolor(_DEFAULT_ACCENT)
+
+    def _on_resize(self, event):
+        """Scale fonts and wraplength when window is resized."""
+        if event.widget != self._root:
+            return
+        import tkinter as tk
+        w = event.width
+        scale = max(0.6, min(2.0, w / self._base_width))
+        self._font_size = max(9, int(self._base_font_size * scale))
+        pad_x = max(10, int(30 * scale))
+        for widget, kind in self._widgets:
+            try:
+                widget.configure(font=self._font())
+                if kind == "label":
+                    widget.configure(wraplength=max(200, w - 60))
+                elif kind in ("button", "entry"):
+                    widget.pack_configure(padx=pad_x)
+            except tk.TclError:
+                pass
+        if self._canvas and not self._turtle:
+            try:
+                cw = max(200, w - 80)
+                ch = max(200, int(cw * 0.75))
+                self._canvas.configure(width=cw, height=ch)
+            except tk.TclError:
+                pass
 
     def open_window(self, title: str) -> None:
         self._ensure_tk()
@@ -112,6 +142,7 @@ class Visuals:
             wraplength=450, justify="center",
         )
         label.pack(pady=4, anchor="center")
+        self._widgets.append((label, "label"))
 
     def add_button(self, text: str, fn_name: str) -> None:
         self._ensure_tk()
@@ -137,6 +168,7 @@ class Visuals:
             borderwidth=0, highlightthickness=0,
         )
         btn.pack(pady=4, fill="x", padx=30)
+        self._widgets.append((btn, "button"))
 
         def _on_enter(e):
             btn.configure(bg=hover_bg)
@@ -158,6 +190,7 @@ class Visuals:
             highlightbackground="#45475a",
         )
         entry.pack(pady=6, fill="x", padx=30)
+        self._widgets.append((entry, "entry"))
         self._interpreter.globals.define(f"__textbox_{name}", entry)
 
     def shuffle_buttons(self) -> None:
@@ -178,6 +211,7 @@ class Visuals:
             widget.destroy()
         self._turtle = None
         self._canvas = None
+        self._widgets.clear()
 
     def set_title(self, title: str) -> None:
         self._ensure_tk()
