@@ -53,6 +53,15 @@ def lex(source: str) -> list[Token]:
             tokens.append(Token(TokenKind.NUMBER, source[start:i], line))
             continue
 
+        # Hex color code: #abc123
+        if ch == '#':
+            start = i
+            i += 1
+            while i < length and (source[i].isalnum()):
+                i += 1
+            tokens.append(Token(TokenKind.WORD, source[start:i], line))
+            continue
+
         # Word: alphabetic characters and apostrophes (for contractions like "don't")
         if ch.isalpha() or ch == "'":
             start = i

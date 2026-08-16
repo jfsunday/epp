@@ -10,6 +10,17 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from .interpreter import Interpreter
 
+# Default theme
+_DEFAULT_BG = "#1e1e2e"
+_DEFAULT_FG = "#cdd6f4"
+_DEFAULT_ACCENT = "#89b4fa"
+_DEFAULT_BTN_BG = "#313244"
+_DEFAULT_BTN_HOVER = "#45475a"
+_DEFAULT_BTN_FG = "#cdd6f4"
+_DEFAULT_FONT_FAMILY = "Segoe UI"
+_DEFAULT_FONT_SIZE = 13
+_FALLBACK_FONTS = ("Noto Sans", "DejaVu Sans", "Helvetica", "Arial", "TkDefaultFont")
+
 
 class Visuals:
     def __init__(self, interpreter: Interpreter):
@@ -18,9 +29,31 @@ class Visuals:
         self._canvas = None
         self._turtle = None
         self._frame = None
-        self._bg_color = None
-        self._text_color = None
-        self._font_size = 12
+        self._bg_color = _DEFAULT_BG
+        self._text_color = _DEFAULT_FG
+        self._font_size = _DEFAULT_FONT_SIZE
+        self._font_family = None  # resolved on first use
+        self._btn_bg = _DEFAULT_BTN_BG
+        self._btn_fg = _DEFAULT_BTN_FG
+        self._accent = _DEFAULT_ACCENT
+
+    def _resolve_font(self):
+        """Pick the first available font family."""
+        if self._font_family is not None:
+            return
+        import tkinter.font as tkfont
+        available = set(tkfont.families())
+        for fam in (_DEFAULT_FONT_FAMILY, *_FALLBACK_FONTS):
+            if fam in available:
+                self._font_family = fam
+                return
+        self._font_family = "TkDefaultFont"
+
+    def _font(self, size: int | None = None, bold: bool = False):
+        self._resolve_font()
+        sz = size or self._font_size
+        weight = "bold" if bold else "normal"
+        return (self._font_family, sz, weight)
 
     def _ensure_tk(self):
         if self._root is not None:
@@ -31,8 +64,9 @@ class Visuals:
         import tkinter as tk
         self._root = tk.Tk()
         self._root.title("E++")
-        self._frame = tk.Frame(self._root)
-        self._frame.pack(fill="both", expand=True)
+        self._root.configure(bg=self._bg_color)
+        self._frame = tk.Frame(self._root, bg=self._bg_color)
+        self._frame.pack(fill="both", expand=True, padx=20, pady=15)
 
     def _ensure_turtle(self):
         if self._turtle is not None:
@@ -40,11 +74,16 @@ class Visuals:
         self._ensure_tk()
         import tkinter as tk
         import turtle
-        self._canvas = tk.Canvas(self._frame, width=400, height=400)
-        self._canvas.pack()
+        self._canvas = tk.Canvas(
+            self._frame, width=400, height=400,
+            bg="#181825", highlightthickness=1, highlightbackground="#45475a",
+        )
+        self._canvas.pack(pady=10)
         screen = turtle.TurtleScreen(self._canvas)
+        screen.bgcolor("#181825")
         self._turtle = turtle.RawTurtle(screen)
         self._turtle.speed(3)
+        self._turtle.pencolor(_DEFAULT_ACCENT)
 
     def open_window(self, title: str) -> None:
         self._ensure_tk()
@@ -53,19 +92,26 @@ class Visuals:
     def set_window_size(self, width: int, height: int) -> None:
         self._ensure_tk()
         self._root.geometry(f"{width}x{height}")
+        # Center on screen
+        self._root.update_idletasks()
+        sw = self._root.winfo_screenwidth()
+        sh = self._root.winfo_screenheight()
+        x = (sw - width) // 2
+        y = (sh - height) // 2
+        self._root.geometry(f"{width}x{height}+{x}+{y}")
 
     def add_label(self, text: str) -> None:
         self._ensure_tk()
         import tkinter as tk
-        opts: dict = {"text": text}
-        if self._text_color:
-            opts["fg"] = self._text_color
-        if self._bg_color:
-            opts["bg"] = self._bg_color
-        if self._font_size != 12:
-            opts["font"] = ("TkDefaultFont", self._font_size)
-        label = tk.Label(self._frame, **opts)
-        label.pack(pady=5)
+        fg = self._text_color
+        bg = self._bg_color
+        label = tk.Label(
+            self._frame, text=text,
+            fg=fg, bg=bg,
+            font=self._font(),
+            wraplength=450, justify="center",
+        )
+        label.pack(pady=4, anchor="center")
 
     def add_button(self, text: str, fn_name: str) -> None:
         self._ensure_tk()
@@ -75,24 +121,43 @@ class Visuals:
             try:
                 self._interpreter.call_function_by_name(fn_name)
             except tk.TclError:
-                pass  # Window was closed during callback
+                pass
 
-        opts: dict = {"text": text, "command": _on_click}
-        if self._text_color:
-            opts["fg"] = self._text_color
-        if self._bg_color:
-            opts["bg"] = self._bg_color
-        if self._font_size != 12:
-            opts["font"] = ("TkDefaultFont", self._font_size)
-        btn = tk.Button(self._frame, **opts)
-        btn.pack(pady=5)
+        btn_bg = self._btn_bg
+        btn_fg = self._btn_fg
+        hover_bg = _DEFAULT_BTN_HOVER
+
+        btn = tk.Button(
+            self._frame, text=text, command=_on_click,
+            fg=btn_fg, bg=btn_bg,
+            activeforeground=btn_fg, activebackground=hover_bg,
+            font=self._font(),
+            relief="flat", cursor="hand2",
+            padx=16, pady=6,
+            borderwidth=0, highlightthickness=0,
+        )
+        btn.pack(pady=4, fill="x", padx=30)
+
+        def _on_enter(e):
+            btn.configure(bg=hover_bg)
+        def _on_leave(e):
+            btn.configure(bg=btn_bg)
+        btn.bind("<Enter>", _on_enter)
+        btn.bind("<Leave>", _on_leave)
 
     def add_text_box(self, name: str) -> None:
         self._ensure_tk()
         import tkinter as tk
-        entry = tk.Entry(self._frame)
-        entry.pack(pady=5)
-        # Store a reference so __textbox_<name> can read it
+        entry = tk.Entry(
+            self._frame,
+            fg=self._text_color, bg=_DEFAULT_BTN_BG,
+            insertbackground=self._text_color,
+            font=self._font(),
+            relief="flat", borderwidth=0,
+            highlightthickness=1, highlightcolor=_DEFAULT_ACCENT,
+            highlightbackground="#45475a",
+        )
+        entry.pack(pady=6, fill="x", padx=30)
         self._interpreter.globals.define(f"__textbox_{name}", entry)
 
     def shuffle_buttons(self) -> None:
@@ -123,7 +188,7 @@ class Visuals:
         try:
             self._root.mainloop()
         except Exception:
-            pass  # Window was closed
+            pass
 
     def set_background_color(self, color: str) -> None:
         self._ensure_tk()

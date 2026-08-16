@@ -69,6 +69,6 @@ class TestLexerEdgeCases:
         assert "line 1" in str(exc_info.value)
 
     def test_illegal_character_various(self):
-        for ch in ['@', '#', '$', '!', '{', '}', '(', ')', '+', '-', '=', '"']:
+        for ch in ['@', '$', '!', '{', '}', '(', ')', '+', '-', '=', '"']:
             with pytest.raises(EppLexError):
                 lex(f"Hello {ch} world")

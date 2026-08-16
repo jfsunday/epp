@@ -1,10 +1,44 @@
 Define draw square,
+    Set pen color to #89b4fa.
     Repeat 4 times,
         Move forward 100 steps.
         Turn right 90 degrees.
     End repeat.
 End define.
 
+Define draw triangle,
+    Set pen color to #a6e3a1.
+    Repeat 3 times,
+        Move forward 100 steps.
+        Turn right 120 degrees.
+    End repeat.
+End define.
+
+Define draw circle,
+    Set pen color to #f9e2af.
+    Draw circle with radius 50.
+End define.
+
+Define draw star,
+    Set pen color to #f38ba8.
+    Repeat 5 times,
+        Move forward 100 steps.
+        Turn right 144 degrees.
+    End repeat.
+End define.
+
 Open window with title Turtle Drawing.
-Add button with text Draw Square that calls draw square.
+Set window size to 520 by 560.
+Set font size to 18.
+Set text color to #89b4fa.
+Add label Turtle Drawing.
+Set font size to 12.
+Set text color to #a6adc8.
+Add label Pick a shape to draw.
+Set text color to #cdd6f4.
+Set font size to 13.
+Add button with text Square that calls draw square.
+Add button with text Triangle that calls draw triangle.
+Add button with text Circle that calls draw circle.
+Add button with text Star that calls draw star.
 Wait for close.

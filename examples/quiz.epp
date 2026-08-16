@@ -66,8 +66,13 @@ End define.
 Define show menu,
     Clear window.
     Set title to Quiz Game.
-    Add label Welcome to the Quiz Game.
-    Add label Choose a category.
+    Set font size to 22.
+    Set text color to #89b4fa.
+    Add label Quiz Game.
+    Set font size to 13.
+    Set text color to #a6adc8.
+    Add label Choose a category to get started.
+    Set text color to #cdd6f4.
     Add button with text General Knowledge that calls start general.
     Add button with text Python Programming that calls start python.
     Add button with text Linux that calls start linux.
@@ -76,18 +81,42 @@ End define.
 Define show result,
     Clear window.
     Set title to Results.
-    Add label Quiz finished.
-    Add label the value of score plus the value of out of text plus the value of total questions.
     Let percentage be the value of score times 100 divided by total questions.
     If the value of percentage is greater than or equal to 80,
-        Add label Excellent work.
+        Set text color to #a6e3a1.
+        Set font size to 28.
+        Add label Excellent.
+        Set font size to 14.
+        Add label the value of score plus the value of out of text plus the value of total questions.
+        Set text color to #a6adc8.
+        Add label You really know your stuff.
     Otherwise if the value of percentage is greater than or equal to 60,
-        Add label Good job.
+        Set text color to #f9e2af.
+        Set font size to 28.
+        Add label Good Job.
+        Set font size to 14.
+        Add label the value of score plus the value of out of text plus the value of total questions.
+        Set text color to #a6adc8.
+        Add label Almost there keep it up.
     Otherwise if the value of percentage is greater than or equal to 40,
-        Add label Not bad keep studying.
+        Set text color to #fab387.
+        Set font size to 28.
+        Add label Not Bad.
+        Set font size to 14.
+        Add label the value of score plus the value of out of text plus the value of total questions.
+        Set text color to #a6adc8.
+        Add label A bit more studying and you will nail it.
     Otherwise,
+        Set text color to #f38ba8.
+        Set font size to 28.
+        Add label Try Again.
+        Set font size to 14.
+        Add label the value of score plus the value of out of text plus the value of total questions.
+        Set text color to #a6adc8.
         Add label Better luck next time.
     End if.
+    Set text color to #cdd6f4.
+    Set font size to 13.
     Add button with text Back to Menu that calls show menu.
 End define.
 
@@ -321,24 +350,46 @@ Define show question,
     Let title text be the value of question number plus the value of out of text plus the value of total questions.
     Set title to the value of title text.
 
+    Set font size to 11.
+    Set text color to #a6adc8.
+    Let progress text be Question plus the value of question number plus the value of out of text plus the value of total questions.
+    Add label the value of progress text.
+
+    Set font size to 16.
     If the value of mode is equal to 1,
+        Set text color to #89b4fa.
         Add label General Knowledge.
+    Otherwise if the value of mode is equal to 2,
+        Set text color to #a6e3a1.
+        Add label Python Programming.
+    Otherwise if the value of mode is equal to 3,
+        Set text color to #fab387.
+        Add label Linux.
+    End if.
+
+    Set text color to #cdd6f4.
+    Set font size to 14.
+    If the value of mode is equal to 1,
         Call show general.
     Otherwise if the value of mode is equal to 2,
-        Add label Python Programming.
         Call show python.
     Otherwise if the value of mode is equal to 3,
-        Add label Linux.
         Call show linux.
     End if.
 
+    Set font size to 13.
     Shuffle buttons.
+
+    Set font size to 11.
+    Set text color to #a6adc8.
     Let score label be Score.
     Let score text be the value of score label plus the value of score plus the value of out of text plus the value of total questions.
     Add label the value of score text.
+    Set text color to #cdd6f4.
+    Set font size to 13.
 End define.
 
 Open window with title Quiz Game.
-Set window size to 500 by 400.
+Set window size to 520 by 480.
 Call show menu.
 Wait for close.
