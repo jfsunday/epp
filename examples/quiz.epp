@@ -5,6 +5,7 @@ Let question number be 1.
 Let total questions be 10.
 Let correct answer be 0.
 Let mode be 0.
+Let out of text be out of.
 
 Note Answer handlers.
 Define pick a,
@@ -75,7 +76,7 @@ Define show result,
     Clear window.
     Set title to Results.
     Add label Quiz finished.
-    Add label the value of score plus out of plus total questions.
+    Add label the value of score plus the value of out of text plus the value of total questions.
     Let percentage be the value of score times 100 divided by total questions.
     If the value of percentage is greater than or equal to 80,
         Add label Excellent work.
@@ -316,7 +317,7 @@ End define.
 
 Define show question,
     Clear window.
-    Let title text be the value of question number plus of plus total questions.
+    Let title text be the value of question number plus the value of out of text plus the value of total questions.
     Set title to the value of title text.
 
     If the value of mode is equal to 1,
@@ -331,7 +332,9 @@ Define show question,
     End if.
 
     Shuffle buttons.
-    Add label the value of Score plus score plus of plus total questions.
+    Let score label be Score.
+    Let score text be the value of score label plus the value of score plus the value of out of text plus the value of total questions.
+    Add label the value of score text.
 End define.
 
 Open window with title Quiz Game.
