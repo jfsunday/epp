@@ -25,6 +25,14 @@ def main() -> None:
     except KeyboardInterrupt:
         print("\nInterrupted.", file=sys.stderr)
         sys.exit(130)
+    except EOFError:
+        # User closed the terminal or input stream ended
+        sys.exit(0)
+    except Exception as e:
+        # Catch TclError etc. from closing a Tkinter window mid-operation
+        if "application has been destroyed" in str(e) or "invalid command" in str(e):
+            sys.exit(0)
+        raise
 
 
 if __name__ == "__main__":

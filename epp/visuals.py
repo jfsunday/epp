@@ -60,11 +60,14 @@ class Visuals:
     def add_button(self, text: str, fn_name: str) -> None:
         self._ensure_tk()
         import tkinter as tk
-        btn = tk.Button(
-            self._frame,
-            text=text,
-            command=lambda: self._interpreter.call_function_by_name(fn_name)
-        )
+
+        def _on_click():
+            try:
+                self._interpreter.call_function_by_name(fn_name)
+            except tk.TclError:
+                pass  # Window was closed during callback
+
+        btn = tk.Button(self._frame, text=text, command=_on_click)
         btn.pack(pady=5)
 
     def add_text_box(self, name: str) -> None:
@@ -77,7 +80,10 @@ class Visuals:
 
     def wait_for_close(self) -> None:
         self._ensure_tk()
-        self._root.mainloop()
+        try:
+            self._root.mainloop()
+        except Exception:
+            pass  # Window was closed
 
     # ── Turtle commands ──────────────────────────────────────────────
 
