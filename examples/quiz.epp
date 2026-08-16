@@ -1,11 +1,12 @@
-Note Quiz Game with 20 questions across many topics.
+Note Quiz Game with 3 modes and 10 questions each.
 
 Let score be 0.
 Let question number be 1.
-Let total questions be 20.
+Let total questions be 10.
 Let correct answer be 0.
+Let mode be 0.
 
-Note Answer handler functions each button sets picked and calls check.
+Note Answer handlers.
 Define pick a,
     Let picked be 1.
     Call check answer.
@@ -38,11 +39,42 @@ Define check answer,
     End if.
 End define.
 
+Note Mode selectors.
+Define start general,
+    Set mode to 1.
+    Set score to 0.
+    Set question number to 1.
+    Call show question.
+End define.
+
+Define start python,
+    Set mode to 2.
+    Set score to 0.
+    Set question number to 1.
+    Call show question.
+End define.
+
+Define start linux,
+    Set mode to 3.
+    Set score to 0.
+    Set question number to 1.
+    Call show question.
+End define.
+
+Define show menu,
+    Clear window.
+    Set title to Quiz Game.
+    Add label Welcome to the Quiz Game.
+    Add label Choose a category.
+    Add button with text General Knowledge that calls start general.
+    Add button with text Python Programming that calls start python.
+    Add button with text Linux that calls start linux.
+End define.
+
 Define show result,
     Clear window.
-    Set title to Quiz Complete.
+    Set title to Results.
     Add label Quiz finished.
-    Add label Your score.
     Add label the value of score plus out of plus total questions.
     Let percentage be the value of score times 100 divided by total questions.
     If the value of percentage is greater than or equal to 80,
@@ -54,12 +86,11 @@ Define show result,
     Otherwise,
         Add label Better luck next time.
     End if.
+    Add button with text Back to Menu that calls show menu.
 End define.
 
-Define show question,
-    Clear window.
-    Set title to the value of Question plus question number plus of plus total questions.
-
+Note General knowledge questions.
+Define show general,
     If the value of question number is equal to 1,
         Add label What is the capital of Australia.
         Set correct answer to 3.
@@ -103,103 +134,200 @@ Define show question,
         Add button with text 226 that calls pick c.
         Add button with text 256 that calls pick d.
     Otherwise if the value of question number is equal to 7,
-        Add label What is the speed of light in km per second.
-        Set correct answer to 3.
-        Add button with text 150000 that calls pick a.
-        Add button with text 250000 that calls pick b.
-        Add button with text 300000 that calls pick c.
-        Add button with text 350000 that calls pick d.
-    Otherwise if the value of question number is equal to 8,
         Add label Which planet is known as the Red Planet.
         Set correct answer to 2.
         Add button with text Venus that calls pick a.
         Add button with text Mars that calls pick b.
         Add button with text Jupiter that calls pick c.
         Add button with text Saturn that calls pick d.
-    Otherwise if the value of question number is equal to 9,
-        Add label What is the largest mammal on Earth.
-        Set correct answer to 4.
-        Add button with text African Elephant that calls pick a.
-        Add button with text Giraffe that calls pick b.
-        Add button with text Great White Shark that calls pick c.
-        Add button with text Blue Whale that calls pick d.
-    Otherwise if the value of question number is equal to 10,
+    Otherwise if the value of question number is equal to 8,
         Add label Who painted the Mona Lisa.
         Set correct answer to 1.
         Add button with text Leonardo da Vinci that calls pick a.
         Add button with text Michelangelo that calls pick b.
         Add button with text Raphael that calls pick c.
         Add button with text Donatello that calls pick d.
-    Otherwise if the value of question number is equal to 11,
-        Add label What is the smallest country in the world.
-        Set correct answer to 3.
-        Add button with text Monaco that calls pick a.
-        Add button with text San Marino that calls pick b.
-        Add button with text Vatican City that calls pick c.
-        Add button with text Liechtenstein that calls pick d.
-    Otherwise if the value of question number is equal to 12,
-        Add label How many chromosomes do humans have.
-        Set correct answer to 2.
-        Add button with text 23 that calls pick a.
-        Add button with text 46 that calls pick b.
-        Add button with text 44 that calls pick c.
-        Add button with text 48 that calls pick d.
-    Otherwise if the value of question number is equal to 13,
-        Add label What element does O represent on the periodic table.
-        Set correct answer to 4.
-        Add button with text Osmium that calls pick a.
-        Add button with text Gold that calls pick b.
-        Add button with text Oganesson that calls pick c.
-        Add button with text Oxygen that calls pick d.
-    Otherwise if the value of question number is equal to 14,
-        Add label In what year did World War 2 end.
-        Set correct answer to 1.
-        Add button with text 1945 that calls pick a.
-        Add button with text 1944 that calls pick b.
-        Add button with text 1946 that calls pick c.
-        Add button with text 1943 that calls pick d.
-    Otherwise if the value of question number is equal to 15,
-        Add label What is the longest river in the world.
-        Set correct answer to 3.
-        Add button with text Amazon that calls pick a.
-        Add button with text Mississippi that calls pick b.
-        Add button with text Nile that calls pick c.
-        Add button with text Yangtze that calls pick d.
-    Otherwise if the value of question number is equal to 16,
-        Add label What is the hardest natural substance.
-        Set correct answer to 2.
-        Add button with text Titanium that calls pick a.
-        Add button with text Diamond that calls pick b.
-        Add button with text Quartz that calls pick c.
-        Add button with text Graphene that calls pick d.
-    Otherwise if the value of question number is equal to 17,
+    Otherwise if the value of question number is equal to 9,
         Add label How many hearts does an octopus have.
         Set correct answer to 4.
         Add button with text 1 that calls pick a.
         Add button with text 2 that calls pick b.
         Add button with text 5 that calls pick c.
         Add button with text 3 that calls pick d.
-    Otherwise if the value of question number is equal to 18,
-        Add label Which continent has the most countries.
-        Set correct answer to 1.
-        Add button with text Africa that calls pick a.
-        Add button with text Asia that calls pick b.
-        Add button with text Europe that calls pick c.
-        Add button with text South America that calls pick d.
-    Otherwise if the value of question number is equal to 19,
-        Add label What is the boiling point of water in Celsius.
-        Set correct answer to 3.
-        Add button with text 90 that calls pick a.
-        Add button with text 95 that calls pick b.
-        Add button with text 100 that calls pick c.
-        Add button with text 110 that calls pick d.
-    Otherwise if the value of question number is equal to 20,
+    Otherwise if the value of question number is equal to 10,
         Add label What gas do plants absorb from the atmosphere.
         Set correct answer to 2.
         Add button with text Oxygen that calls pick a.
         Add button with text Carbon Dioxide that calls pick b.
         Add button with text Nitrogen that calls pick c.
         Add button with text Hydrogen that calls pick d.
+    End if.
+End define.
+
+Note Python programming questions.
+Define show python,
+    If the value of question number is equal to 1,
+        Add label What keyword starts a function definition in Python.
+        Set correct answer to 3.
+        Add button with text func that calls pick a.
+        Add button with text function that calls pick b.
+        Add button with text def that calls pick c.
+        Add button with text define that calls pick d.
+    Otherwise if the value of question number is equal to 2,
+        Add label Which data type is immutable in Python.
+        Set correct answer to 4.
+        Add button with text list that calls pick a.
+        Add button with text dict that calls pick b.
+        Add button with text set that calls pick c.
+        Add button with text tuple that calls pick d.
+    Otherwise if the value of question number is equal to 3,
+        Add label What does PEP stand for in PEP 8.
+        Set correct answer to 1.
+        Add button with text Python Enhancement Proposal that calls pick a.
+        Add button with text Python Execution Protocol that calls pick b.
+        Add button with text Python Extension Package that calls pick c.
+        Add button with text Python Encoding Plan that calls pick d.
+    Otherwise if the value of question number is equal to 4,
+        Add label What does len do in Python.
+        Set correct answer to 2.
+        Add button with text Returns the last element that calls pick a.
+        Add button with text Returns the length that calls pick b.
+        Add button with text Sorts the collection that calls pick c.
+        Add button with text Creates a new list that calls pick d.
+    Otherwise if the value of question number is equal to 5,
+        Add label Which keyword handles exceptions in Python.
+        Set correct answer to 3.
+        Add button with text catch that calls pick a.
+        Add button with text handle that calls pick b.
+        Add button with text except that calls pick c.
+        Add button with text rescue that calls pick d.
+    Otherwise if the value of question number is equal to 6,
+        Add label What is the output of type 42 in Python.
+        Set correct answer to 1.
+        Add button with text int that calls pick a.
+        Add button with text float that calls pick b.
+        Add button with text number that calls pick c.
+        Add button with text integer that calls pick d.
+    Otherwise if the value of question number is equal to 7,
+        Add label What symbol starts a comment in Python.
+        Set correct answer to 4.
+        Add button with text Two slashes that calls pick a.
+        Add button with text Semicolon that calls pick b.
+        Add button with text Two dashes that calls pick c.
+        Add button with text Hash symbol that calls pick d.
+    Otherwise if the value of question number is equal to 8,
+        Add label What method adds an item to the end of a list.
+        Set correct answer to 2.
+        Add button with text add that calls pick a.
+        Add button with text append that calls pick b.
+        Add button with text push that calls pick c.
+        Add button with text insert that calls pick d.
+    Otherwise if the value of question number is equal to 9,
+        Add label What does pip stand for in Python.
+        Set correct answer to 3.
+        Add button with text Python Install Program that calls pick a.
+        Add button with text Python Index Protocol that calls pick b.
+        Add button with text Pip Installs Packages that calls pick c.
+        Add button with text Package Install Python that calls pick d.
+    Otherwise if the value of question number is equal to 10,
+        Add label Which built in function reads user input in Python 3.
+        Set correct answer to 1.
+        Add button with text input that calls pick a.
+        Add button with text raw input that calls pick b.
+        Add button with text read that calls pick c.
+        Add button with text scan that calls pick d.
+    End if.
+End define.
+
+Note Linux questions.
+Define show linux,
+    If the value of question number is equal to 1,
+        Add label What command lists files in a directory.
+        Set correct answer to 2.
+        Add button with text dir that calls pick a.
+        Add button with text ls that calls pick b.
+        Add button with text list that calls pick c.
+        Add button with text show that calls pick d.
+    Otherwise if the value of question number is equal to 2,
+        Add label What does the cd command do.
+        Set correct answer to 3.
+        Add button with text Copy directory that calls pick a.
+        Add button with text Create directory that calls pick b.
+        Add button with text Change directory that calls pick c.
+        Add button with text Clear display that calls pick d.
+    Otherwise if the value of question number is equal to 3,
+        Add label Who created Linux.
+        Set correct answer to 1.
+        Add button with text Linus Torvalds that calls pick a.
+        Add button with text Richard Stallman that calls pick b.
+        Add button with text Dennis Ritchie that calls pick c.
+        Add button with text Ken Thompson that calls pick d.
+    Otherwise if the value of question number is equal to 4,
+        Add label What command shows running processes.
+        Set correct answer to 4.
+        Add button with text proc that calls pick a.
+        Add button with text run that calls pick b.
+        Add button with text list that calls pick c.
+        Add button with text ps that calls pick d.
+    Otherwise if the value of question number is equal to 5,
+        Add label What is the root user home directory.
+        Set correct answer to 2.
+        Add button with text home root that calls pick a.
+        Add button with text root that calls pick b.
+        Add button with text usr root that calls pick c.
+        Add button with text admin that calls pick d.
+    Otherwise if the value of question number is equal to 6,
+        Add label What command changes file permissions.
+        Set correct answer to 3.
+        Add button with text chown that calls pick a.
+        Add button with text perm that calls pick b.
+        Add button with text chmod that calls pick c.
+        Add button with text access that calls pick d.
+    Otherwise if the value of question number is equal to 7,
+        Add label What does grep stand for.
+        Set correct answer to 1.
+        Add button with text Global Regular Expression Print that calls pick a.
+        Add button with text Get Regular Expression Pattern that calls pick b.
+        Add button with text General Regex Parser that calls pick c.
+        Add button with text Grab Regular Expression Part that calls pick d.
+    Otherwise if the value of question number is equal to 8,
+        Add label What file contains user account information.
+        Set correct answer to 4.
+        Add button with text etc users that calls pick a.
+        Add button with text etc accounts that calls pick b.
+        Add button with text etc shadow that calls pick c.
+        Add button with text etc passwd that calls pick d.
+    Otherwise if the value of question number is equal to 9,
+        Add label Which command installs packages on Arch Linux.
+        Set correct answer to 2.
+        Add button with text apt that calls pick a.
+        Add button with text pacman that calls pick b.
+        Add button with text yum that calls pick c.
+        Add button with text dnf that calls pick d.
+    Otherwise if the value of question number is equal to 10,
+        Add label What signal does kill send by default.
+        Set correct answer to 3.
+        Add button with text SIGKILL that calls pick a.
+        Add button with text SIGINT that calls pick b.
+        Add button with text SIGTERM that calls pick c.
+        Add button with text SIGHUP that calls pick d.
+    End if.
+End define.
+
+Define show question,
+    Clear window.
+    Let title text be the value of question number plus of plus total questions.
+    Set title to the value of title text.
+
+    If the value of mode is equal to 1,
+        Add label General Knowledge.
+        Call show general.
+    Otherwise if the value of mode is equal to 2,
+        Add label Python Programming.
+        Call show python.
+    Otherwise if the value of mode is equal to 3,
+        Add label Linux.
+        Call show linux.
     End if.
 
     Shuffle buttons.
@@ -208,5 +336,5 @@ End define.
 
 Open window with title Quiz Game.
 Set window size to 500 by 400.
-Call show question.
+Call show menu.
 Wait for close.
