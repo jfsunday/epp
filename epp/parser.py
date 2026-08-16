@@ -296,7 +296,7 @@ class Parser:
         return left
 
     def _parse_operand(self, stop_words: set[str]) -> object:
-        """Parse a single operand (number, variable ref, or nested expression)."""
+        """Parse a single operand (number, bool, variable ref, or nested expression)."""
         line = self.current().line
 
         if self.current().kind == TokenKind.NUMBER:
@@ -306,8 +306,19 @@ class Parser:
             n = self._parse_number(line)
             n.value = -n.value
             return n
+        if self.at_word("yes"):
+            self.advance()
+            return ast.BoolLit(True, line)
+        if self.at_word("no"):
+            self.advance()
+            return ast.BoolLit(False, line)
         if self.at_word("a") and self.peek(1).value.lower() == "random":
             return self.parse_value(stop_words)
+        if self.at_word("the") and self.peek(1).value.lower() == "value":
+            self.advance()  # the
+            self.advance()  # value
+            self.expect_word("of")
+            return self._parse_expression(stop_words)
 
         # Variable reference
         expr_stops = stop_words | {"plus", "minus", "times", "divided", "remainder",
