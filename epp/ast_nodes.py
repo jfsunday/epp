@@ -259,3 +259,21 @@ class SetPenColorStmt:
 class DrawCircleStmt:
     radius: Any
     line: int
+
+
+@dataclass
+class SetBackgroundColorStmt:
+    color: Any
+    line: int
+
+
+@dataclass
+class SetTextColorStmt:
+    color: Any
+    line: int
+
+
+@dataclass
+class SetFontSizeStmt:
+    size: Any
+    line: int

@@ -473,6 +473,33 @@ class Parser:
             self.skip_period()
             return ast.SetTitleStmt(title, line)
 
+        # Check for "Set background color to <color>"
+        if self.at_word("background"):
+            self.advance()  # background
+            self.expect_word("color")
+            self.expect_word("to")
+            color = self.parse_value()
+            self.skip_period()
+            return ast.SetBackgroundColorStmt(color, line)
+
+        # Check for "Set text color to <color>"
+        if self.at_word("text"):
+            self.advance()  # text
+            self.expect_word("color")
+            self.expect_word("to")
+            color = self.parse_value()
+            self.skip_period()
+            return ast.SetTextColorStmt(color, line)
+
+        # Check for "Set font size to <number>"
+        if self.at_word("font"):
+            self.advance()  # font
+            self.expect_word("size")
+            self.expect_word("to")
+            size = self.parse_value()
+            self.skip_period()
+            return ast.SetFontSizeStmt(size, line)
+
         # Check for "Set pen color to <color>"
         if self.at_word("pen"):
             self.advance()  # pen

@@ -269,6 +269,19 @@ class Interpreter:
     def _exec_ShuffleButtonsStmt(self, node: ast.ShuffleButtonsStmt, env: Environment) -> None:
         self._get_visuals(node.line).shuffle_buttons()
 
+    def _exec_SetBackgroundColorStmt(self, node: ast.SetBackgroundColorStmt, env: Environment) -> None:
+        color = format_value(self._eval(node.color, env))
+        self._get_visuals(node.line).set_background_color(color)
+
+    def _exec_SetTextColorStmt(self, node: ast.SetTextColorStmt, env: Environment) -> None:
+        color = format_value(self._eval(node.color, env))
+        self._get_visuals(node.line).set_text_color(color)
+
+    def _exec_SetFontSizeStmt(self, node: ast.SetFontSizeStmt, env: Environment) -> None:
+        size = self._eval(node.size, env)
+        self._check_number(size, "font size", node.line)
+        self._get_visuals(node.line).set_font_size(int(size))
+
     def _exec_MoveStmt(self, node: ast.MoveStmt, env: Environment) -> None:
         amount = self._eval(node.amount, env)
         self._check_number(amount, "move distance", node.line)

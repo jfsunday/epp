@@ -5,26 +5,27 @@ Let question number be 1.
 Let total questions be 10.
 Let correct answer be 0.
 Let mode be 0.
+Let picked be 0.
 Let out of text be out of.
 
 Note Answer handlers.
 Define pick a,
-    Let picked be 1.
+    Set picked to 1.
     Call check answer.
 End define.
 
 Define pick b,
-    Let picked be 2.
+    Set picked to 2.
     Call check answer.
 End define.
 
 Define pick c,
-    Let picked be 3.
+    Set picked to 3.
     Call check answer.
 End define.
 
 Define pick d,
-    Let picked be 4.
+    Set picked to 4.
     Call check answer.
 End define.
 

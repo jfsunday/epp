@@ -18,6 +18,9 @@ class Visuals:
         self._canvas = None
         self._turtle = None
         self._frame = None
+        self._bg_color = None
+        self._text_color = None
+        self._font_size = 12
 
     def _ensure_tk(self):
         if self._root is not None:
@@ -54,7 +57,14 @@ class Visuals:
     def add_label(self, text: str) -> None:
         self._ensure_tk()
         import tkinter as tk
-        label = tk.Label(self._frame, text=text)
+        opts: dict = {"text": text}
+        if self._text_color:
+            opts["fg"] = self._text_color
+        if self._bg_color:
+            opts["bg"] = self._bg_color
+        if self._font_size != 12:
+            opts["font"] = ("TkDefaultFont", self._font_size)
+        label = tk.Label(self._frame, **opts)
         label.pack(pady=5)
 
     def add_button(self, text: str, fn_name: str) -> None:
@@ -67,7 +77,14 @@ class Visuals:
             except tk.TclError:
                 pass  # Window was closed during callback
 
-        btn = tk.Button(self._frame, text=text, command=_on_click)
+        opts: dict = {"text": text, "command": _on_click}
+        if self._text_color:
+            opts["fg"] = self._text_color
+        if self._bg_color:
+            opts["bg"] = self._bg_color
+        if self._font_size != 12:
+            opts["font"] = ("TkDefaultFont", self._font_size)
+        btn = tk.Button(self._frame, **opts)
         btn.pack(pady=5)
 
     def add_text_box(self, name: str) -> None:
@@ -107,6 +124,20 @@ class Visuals:
             self._root.mainloop()
         except Exception:
             pass  # Window was closed
+
+    def set_background_color(self, color: str) -> None:
+        self._ensure_tk()
+        self._bg_color = color
+        self._root.configure(bg=color)
+        self._frame.configure(bg=color)
+
+    def set_text_color(self, color: str) -> None:
+        self._ensure_tk()
+        self._text_color = color
+
+    def set_font_size(self, size: int) -> None:
+        self._ensure_tk()
+        self._font_size = size
 
     # ── Turtle commands ──────────────────────────────────────────────
 
