@@ -124,6 +124,49 @@ Ask for age with the message How old are you.
 
 `Ask` auto-detects whether the input is a number or text.
 
+### Data Structures
+
+**Lists:**
+```
+Create a list called fruits.
+Add apple to fruits.
+Add banana to fruits.
+Say item 1 of fruits.
+Say the length of fruits.
+Remove item 2 from fruits.
+Remove apple from fruits.
+```
+
+**Dictionaries:**
+```
+Create a dictionary called vocab.
+Set the entry hello in vocab to hallo.
+Say the entry hello in vocab.
+Say the length of vocab.
+Let words be the keys of vocab.
+Remove the entry hello from vocab.
+```
+
+**Iteration:**
+```
+For each fruit in fruits,
+    Say the value of fruit.
+End for each.
+```
+
+**Conditions:**
+```
+If the value of fruits contains apple,
+    Say found it.
+End if.
+
+If the value of vocab has the entry hello,
+    Say has hello.
+End if.
+```
+
+`Add` works for both lists (`Add item to list.`) and numbers (`Add 5 to score.`) — resolved at runtime based on the variable type.
+
 ### Comments
 
 ```
@@ -197,6 +240,7 @@ Launches a 2D side-scrolling platformer with:
 | `draw_square.epp` | Turtle graphics with interactive shape buttons |
 | `quiz.epp` | Multi-category quiz game with 30 questions, scoring, and themed UI |
 | `jumper.epp` | Procedurally generated 2D jump'n'run game |
+| `vocab.epp` | Latin vocabulary trainer using lists and dictionaries |
 
 ## Spec Deviations
 
@@ -205,6 +249,8 @@ Launches a 2D side-scrolling platformer with:
 **`Start a jump and run game.`** — Built-in game engine not in the original spec. Adds a single new statement type.
 
 **Responsive sizing** — Widget fonts and layout adapt to window size changes. Not specified in the original spec but follows the spirit of usable visual output.
+
+**Data structures** — Lists and dictionaries extend the original spec with collection types. Adds `Create`, `Remove`, `For each`, `item of`, `the length of`, `the keys of`, `the entry in`, `contains`, and `has the entry`. `Add` is overloaded to append to lists at runtime.
 
 ## Requirements
 

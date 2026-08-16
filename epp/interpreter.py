@@ -146,6 +146,9 @@ class Interpreter:
     def _exec_AddStmt(self, node: ast.AddStmt, env: Environment) -> None:
         current = env.get(node.name, node.line)
         amount = self._eval(node.value, env)
+        if isinstance(current, list):
+            current.append(amount)
+            return
         self._check_number(current, f"variable '{node.name}'", node.line)
         self._check_number(amount, "value to add", node.line)
         env.set(node.name, current + amount, node.line)
@@ -227,6 +230,114 @@ class Interpreter:
 
     def _exec_NoteStmt(self, node: ast.NoteStmt, env: Environment) -> None:
         pass  # Comments are ignored
+
+    # ── Data Structure Executors ──────────────────────────────────────
+
+    def _exec_CreateListStmt(self, node: ast.CreateListStmt, env: Environment) -> None:
+        env.define(node.name, [])
+
+    def _exec_CreateDictStmt(self, node: ast.CreateDictStmt, env: Environment) -> None:
+        env.define(node.name, {})
+
+    def _exec_RemoveItemStmt(self, node: ast.RemoveItemStmt, env: Environment) -> None:
+        lst = env.get(node.list_name, node.line)
+        if not isinstance(lst, list):
+            raise EppRuntimeError(f"'{node.list_name}' is not a list", node.line)
+        index = self._eval(node.index, env)
+        self._check_number(index, "index", node.line)
+        idx = int(index)
+        if idx < 1 or idx > len(lst):
+            raise EppRuntimeError(f"index {idx} is out of bounds (list has {len(lst)} items)", node.line)
+        lst.pop(idx - 1)
+
+    def _exec_RemoveValueStmt(self, node: ast.RemoveValueStmt, env: Environment) -> None:
+        lst = env.get(node.list_name, node.line)
+        if not isinstance(lst, list):
+            raise EppRuntimeError(f"'{node.list_name}' is not a list", node.line)
+        value = self._eval(node.value, env)
+        try:
+            lst.remove(value)
+        except ValueError:
+            raise EppRuntimeError(f"value {format_value(value)!r} not found in '{node.list_name}'", node.line)
+
+    def _exec_RemoveEntryStmt(self, node: ast.RemoveEntryStmt, env: Environment) -> None:
+        d = env.get(node.dict_name, node.line)
+        if not isinstance(d, dict):
+            raise EppRuntimeError(f"'{node.dict_name}' is not a dictionary", node.line)
+        key = format_value(self._eval(node.key, env))
+        if key not in d:
+            raise EppRuntimeError(f"key {key!r} not found in '{node.dict_name}'", node.line)
+        del d[key]
+
+    def _exec_SetEntryStmt(self, node: ast.SetEntryStmt, env: Environment) -> None:
+        d = env.get(node.dict_name, node.line)
+        if not isinstance(d, dict):
+            raise EppRuntimeError(f"'{node.dict_name}' is not a dictionary", node.line)
+        key = format_value(self._eval(node.key, env))
+        value = self._eval(node.value, env)
+        d[key] = value
+
+    def _exec_ForEachStmt(self, node: ast.ForEachStmt, env: Environment) -> None:
+        collection = env.get(node.iterable_name, node.line)
+        if not isinstance(collection, list):
+            raise EppRuntimeError(f"'{node.iterable_name}' is not a list", node.line)
+        for item in collection:
+            if env.has(node.var_name):
+                env.set(node.var_name, item, node.line)
+            else:
+                env.define(node.var_name, item)
+            for stmt in node.body:
+                self._exec(stmt, env)
+
+    # ── Data Structure Evaluators ────────────────────────────────────
+
+    def _eval_ItemOfExpr(self, node: ast.ItemOfExpr, env: Environment) -> object:
+        lst = env.get(node.list_name, node.line)
+        if not isinstance(lst, list):
+            raise EppRuntimeError(f"'{node.list_name}' is not a list", node.line)
+        index = self._eval(node.index, env)
+        self._check_number(index, "index", node.line)
+        idx = int(index)
+        if idx < 1 or idx > len(lst):
+            raise EppRuntimeError(f"index {idx} is out of bounds (list has {len(lst)} items)", node.line)
+        return lst[idx - 1]
+
+    def _eval_LengthOfExpr(self, node: ast.LengthOfExpr, env: Environment) -> float:
+        val = env.get(node.name, node.line)
+        if not isinstance(val, (list, dict)):
+            raise EppRuntimeError(f"'{node.name}' is not a list or dictionary", node.line)
+        return float(len(val))
+
+    def _eval_KeysOfExpr(self, node: ast.KeysOfExpr, env: Environment) -> list:
+        d = env.get(node.name, node.line)
+        if not isinstance(d, dict):
+            raise EppRuntimeError(f"'{node.name}' is not a dictionary", node.line)
+        return list(d.keys())
+
+    def _eval_EntryInExpr(self, node: ast.EntryInExpr, env: Environment) -> object:
+        d = env.get(node.dict_name, node.line)
+        if not isinstance(d, dict):
+            raise EppRuntimeError(f"'{node.dict_name}' is not a dictionary", node.line)
+        key = format_value(self._eval(node.key, env))
+        if key not in d:
+            raise EppRuntimeError(f"key {key!r} not found in '{node.dict_name}'", node.line)
+        return d[key]
+
+    def _eval_ContainsExpr(self, node: ast.ContainsExpr, env: Environment) -> bool:
+        collection = self._eval(node.collection, env)
+        value = self._eval(node.value, env)
+        if isinstance(collection, list):
+            return value in collection
+        if isinstance(collection, dict):
+            return format_value(value) in collection
+        raise EppRuntimeError("'contains' can only be used with lists or dictionaries", node.line)
+
+    def _eval_HasEntryExpr(self, node: ast.HasEntryExpr, env: Environment) -> bool:
+        collection = self._eval(node.collection, env)
+        key = format_value(self._eval(node.key, env))
+        if not isinstance(collection, dict):
+            raise EppRuntimeError("'has the entry' can only be used with dictionaries", node.line)
+        return key in collection
 
     # ── §14 Visual Executors ─────────────────────────────────────────
 

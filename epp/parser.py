@@ -16,7 +16,7 @@ STMT_KEYWORDS = {
     "if", "otherwise", "end", "while", "repeat",
     "say", "ask", "define", "call", "return", "note",
     "open", "move", "turn", "pen", "draw", "wait", "clear", "shuffle",
-    "start",
+    "start", "create", "remove", "for",
 }
 
 
@@ -168,6 +168,37 @@ class Parser:
             name = self.read_identifier(stop_words)
             return ast.VarRef(f"__textbox_{name}", line)
 
+        # "item N of LIST"
+        if self.at_word("item"):
+            self.advance()  # item
+            index = self._parse_operand({"of"} | stop_words)
+            self.expect_word("of")
+            name = self.read_identifier(stop_words)
+            return self._maybe_chain_ops(ast.ItemOfExpr(index, name, line), stop_words)
+
+        # "the length of X", "the keys of X", "the entry KEY in DICT"
+        if self.at_word("the"):
+            peek_val = self.peek(1).value.lower()
+            if peek_val == "length":
+                self.advance()  # the
+                self.advance()  # length
+                self.expect_word("of")
+                name = self.read_identifier(stop_words)
+                return self._maybe_chain_ops(ast.LengthOfExpr(name, line), stop_words)
+            elif peek_val == "keys":
+                self.advance()  # the
+                self.advance()  # keys
+                self.expect_word("of")
+                name = self.read_identifier(stop_words)
+                return ast.KeysOfExpr(name, line)
+            elif peek_val == "entry":
+                self.advance()  # the
+                self.advance()  # entry
+                key = self.parse_value({"in"} | stop_words)
+                self.expect_word("in")
+                name = self.read_identifier(stop_words)
+                return self._maybe_chain_ops(ast.EntryInExpr(key, name, line), stop_words)
+
         # Free text (string literal) — greedy until PERIOD/COMMA/EOF or stop_word
         return self._parse_free_text(stop_words)
 
@@ -195,10 +226,19 @@ class Parser:
             self.advance()
             left = self._parse_number(line)
             left.value = -left.value
+        elif self.at_word("the"):
+            peek_val = self.peek(1).value.lower()
+            if peek_val in ("length", "keys", "entry", "value"):
+                return self.parse_value(stop_words)
+            else:
+                expr_stops = stop_words | {"plus", "minus", "times", "divided", "remainder",
+                                            "is", "and", "or", "contains", "has"}
+                name = self.read_identifier(expr_stops)
+                left = ast.VarRef(name, line)
         else:
             # Variable reference — read identifier stopping at operators and stop_words
             expr_stops = stop_words | {"plus", "minus", "times", "divided", "remainder",
-                                        "is", "and", "or"}
+                                        "is", "and", "or", "contains", "has"}
             name = self.read_identifier(expr_stops)
             left = ast.VarRef(name, line)
 
@@ -282,6 +322,23 @@ class Parser:
                     self.pos = saved
                     break
 
+            # Collection operators
+            elif self.at_word("contains"):
+                self.advance()
+                right = self.parse_value(stop_words)
+                left = ast.ContainsExpr(left, right, line)
+            elif self.at_word("has"):
+                saved_has = self.pos
+                self.advance()  # has
+                if self.at_word("the") and self.peek(1).value.lower() == "entry":
+                    self.advance()  # the
+                    self.advance()  # entry
+                    key = self.parse_value(stop_words)
+                    left = ast.HasEntryExpr(left, key, line)
+                else:
+                    self.pos = saved_has
+                    break
+
             # Logic operators
             elif self.at_word("and"):
                 self.advance()
@@ -320,10 +377,14 @@ class Parser:
             self.advance()  # value
             self.expect_word("of")
             return self._parse_expression(stop_words)
+        if self.at_word("the"):
+            peek_val = self.peek(1).value.lower()
+            if peek_val in ("length", "keys", "entry"):
+                return self.parse_value(stop_words)
 
         # Variable reference
         expr_stops = stop_words | {"plus", "minus", "times", "divided", "remainder",
-                                    "is", "and", "or"}
+                                    "is", "and", "or", "contains", "has"}
         name = self.read_identifier(expr_stops)
         return ast.VarRef(name, line)
 
@@ -428,6 +489,12 @@ class Parser:
             return ast.ShuffleButtonsStmt(line)
         elif word == "start":
             return self._parse_start(line)
+        elif word == "create":
+            return self._parse_create(line)
+        elif word == "remove":
+            return self._parse_remove(line)
+        elif word == "for":
+            return self._parse_for_each(line)
         else:
             raise EppParseError(f"unknown statement '{tok.value}'", line)
 
@@ -511,6 +578,18 @@ class Parser:
             color = self.parse_value()
             self.skip_period()
             return ast.SetPenColorStmt(color, line)
+
+        # Check for "Set the entry KEY in DICT to VALUE."
+        if self.at_word("the") and self.peek(1).value.lower() == "entry":
+            self.advance()  # the
+            self.advance()  # entry
+            key = self.parse_value({"in"})
+            self.expect_word("in")
+            dict_name = self.read_identifier({"to"})
+            self.expect_word("to")
+            value = self.parse_value()
+            self.skip_period()
+            return ast.SetEntryStmt(dict_name, key, value, line)
 
         name = self.read_identifier({"to"})
         self.expect_word("to")
@@ -896,6 +975,75 @@ class Parser:
         self.expect_word("game")
         self.skip_period()
         return ast.StartGameStmt("jump and run", line)
+
+    # ── Data Structure Parsers ──────────────────────────────────────
+
+    def _parse_create(self, line: int) -> object:
+        """Create a list/dictionary called <name>."""
+        self.advance()  # create
+        self.expect_word("a")
+        if self.at_word("list"):
+            self.advance()  # list
+            self.expect_word("called")
+            name = self.read_identifier(set())
+            self.skip_period()
+            return ast.CreateListStmt(name, line)
+        elif self.at_word("dictionary"):
+            self.advance()  # dictionary
+            self.expect_word("called")
+            name = self.read_identifier(set())
+            self.skip_period()
+            return ast.CreateDictStmt(name, line)
+        else:
+            raise EppParseError("expected 'list' or 'dictionary' after 'Create a'", line)
+
+    def _parse_remove(self, line: int) -> object:
+        """Remove item/value/entry from list/dict."""
+        self.advance()  # remove
+
+        if self.at_word("item"):
+            self.advance()  # item
+            index = self._parse_operand({"from"})
+            self.expect_word("from")
+            name = self.read_identifier(set())
+            self.skip_period()
+            return ast.RemoveItemStmt(name, index, line)
+
+        if self.at_word("the") and self.peek(1).value.lower() == "entry":
+            self.advance()  # the
+            self.advance()  # entry
+            key = self.parse_value({"from"})
+            self.expect_word("from")
+            name = self.read_identifier(set())
+            self.skip_period()
+            return ast.RemoveEntryStmt(name, key, line)
+
+        # Remove VALUE from LIST
+        value = self.parse_value({"from"})
+        self.expect_word("from")
+        name = self.read_identifier(set())
+        self.skip_period()
+        return ast.RemoveValueStmt(name, value, line)
+
+    def _parse_for_each(self, line: int) -> ast.ForEachStmt:
+        """For each VAR in LIST, do the following. ... End for each."""
+        self.advance()  # for
+        self.expect_word("each")
+        var_name = self.read_identifier({"in"}, allow_keywords=True)
+        self.expect_word("in")
+        list_name = self.read_identifier(set(), allow_keywords=True)
+        self.expect_kind(TokenKind.COMMA)
+
+        body = self._parse_block({"end"})
+
+        if not self.at_word("end"):
+            raise EppParseError("expected 'End for each' to close the for each block", self.current().line)
+        self.advance()  # end
+        self.expect_word("for")
+        self.expect_word("each")
+        self.skip_period()
+
+        return ast.ForEachStmt(var_name, list_name, body, line)
 
 
 def parse(tokens: list[Token]) -> list[object]:

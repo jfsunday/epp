@@ -11,6 +11,11 @@ def format_value(value: object) -> str:
         if value == int(value):
             return str(int(value))
         return str(value)
+    if isinstance(value, list):
+        return "[" + ", ".join(format_value(v) for v in value) + "]"
+    if isinstance(value, dict):
+        entries = ", ".join(f"{k}: {format_value(v)}" for k, v in value.items())
+        return "{" + entries + "}"
     return str(value)
 
 

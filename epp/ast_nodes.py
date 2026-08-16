@@ -279,6 +279,99 @@ class SetFontSizeStmt:
     line: int
 
 
+# ── Data Structure Statements ────────────────────────────────────────
+
+@dataclass
+class CreateListStmt:
+    name: str
+    line: int
+
+
+@dataclass
+class CreateDictStmt:
+    name: str
+    line: int
+
+
+@dataclass
+class RemoveItemStmt:
+    list_name: str
+    index: Any
+    line: int
+
+
+@dataclass
+class RemoveValueStmt:
+    list_name: str
+    value: Any
+    line: int
+
+
+@dataclass
+class RemoveEntryStmt:
+    dict_name: str
+    key: Any
+    line: int
+
+
+@dataclass
+class SetEntryStmt:
+    dict_name: str
+    key: Any
+    value: Any
+    line: int
+
+
+@dataclass
+class ForEachStmt:
+    var_name: str
+    iterable_name: str
+    body: list[Any]
+    line: int
+
+
+# ── Data Structure Expressions ──────────────────────────────────────
+
+@dataclass
+class ItemOfExpr:
+    index: Any
+    list_name: str
+    line: int
+
+
+@dataclass
+class LengthOfExpr:
+    name: str
+    line: int
+
+
+@dataclass
+class KeysOfExpr:
+    name: str
+    line: int
+
+
+@dataclass
+class EntryInExpr:
+    key: Any
+    dict_name: str
+    line: int
+
+
+@dataclass
+class ContainsExpr:
+    collection: Any
+    value: Any
+    line: int
+
+
+@dataclass
+class HasEntryExpr:
+    collection: Any
+    key: Any
+    line: int
+
+
 # ── Game Statements ───────────────────────────────────────────────────
 
 @dataclass

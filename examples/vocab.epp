@@ -1,0 +1,35 @@
+Note, Latin vocabulary trainer using lists and dictionaries.
+
+Create a dictionary called vocab.
+Set the entry aqua in vocab to water.
+Set the entry terra in vocab to earth.
+Set the entry ignis in vocab to fire.
+Set the entry ventus in vocab to wind.
+Set the entry caelum in vocab to sky.
+
+Let correct be 0.
+Let total be 0.
+
+Let words be the keys of vocab.
+
+For each word in words,
+    Let answer be the entry the value of word in vocab.
+    Say the value of word.
+    Ask for guess with the message What does it mean.
+
+    If the value of guess is equal to the value of answer,
+        Say Correct.
+        Add 1 to correct.
+    Otherwise,
+        Say Wrong.
+        Say The correct answer is.
+        Say the value of answer.
+    End if.
+
+    Add 1 to total.
+End for each.
+
+Say You got.
+Say the value of correct.
+Say out of.
+Say the value of total.
