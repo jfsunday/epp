@@ -214,6 +214,22 @@ class WaitForCloseStmt:
 
 
 @dataclass
+class ClearWindowStmt:
+    line: int
+
+
+@dataclass
+class SetTitleStmt:
+    title: Any
+    line: int
+
+
+@dataclass
+class ShuffleButtonsStmt:
+    line: int
+
+
+@dataclass
 class MoveStmt:
     direction: str  # forward, backward
     amount: Any

@@ -15,7 +15,7 @@ STMT_KEYWORDS = {
     "let", "set", "add", "subtract", "multiply", "divide",
     "if", "otherwise", "end", "while", "repeat",
     "say", "ask", "define", "call", "return", "note",
-    "open", "move", "turn", "pen", "draw", "wait",
+    "open", "move", "turn", "pen", "draw", "wait", "clear", "shuffle",
 }
 
 
@@ -418,6 +418,13 @@ class Parser:
             return self._parse_draw(line)
         elif word == "wait":
             return self._parse_wait(line)
+        elif word == "clear":
+            return self._parse_clear(line)
+        elif word == "shuffle":
+            self.advance()
+            self.expect_word("buttons")
+            self.skip_period()
+            return ast.ShuffleButtonsStmt(line)
         else:
             raise EppParseError(f"unknown statement '{tok.value}'", line)
 
@@ -457,6 +464,14 @@ class Parser:
             height = self.parse_value()
             self.skip_period()
             return ast.SetWindowSizeStmt(width, height, line)
+
+        # Check for "Set title to <text>"
+        if self.at_word("title"):
+            self.advance()  # title
+            self.expect_word("to")
+            title = self.parse_value()
+            self.skip_period()
+            return ast.SetTitleStmt(title, line)
 
         # Check for "Set pen color to <color>"
         if self.at_word("pen"):
@@ -830,6 +845,14 @@ class Parser:
         self.expect_word("close")
         self.skip_period()
         return ast.WaitForCloseStmt(line)
+
+
+    def _parse_clear(self, line: int) -> ast.ClearWindowStmt:
+        """Clear window."""
+        self.advance()  # clear
+        self.expect_word("window")
+        self.skip_period()
+        return ast.ClearWindowStmt(line)
 
 
 def parse(tokens: list[Token]) -> list[object]:

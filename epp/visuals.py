@@ -78,6 +78,29 @@ class Visuals:
         # Store a reference so __textbox_<name> can read it
         self._interpreter.globals.define(f"__textbox_{name}", entry)
 
+    def shuffle_buttons(self) -> None:
+        self._ensure_tk()
+        import tkinter as tk
+        import random
+        buttons = [w for w in self._frame.winfo_children() if isinstance(w, tk.Button)]
+        if not buttons:
+            return
+        configs = [(b.cget("text"), b.cget("command")) for b in buttons]
+        random.shuffle(configs)
+        for btn, (text, cmd) in zip(buttons, configs):
+            btn.configure(text=text, command=cmd)
+
+    def clear_window(self) -> None:
+        self._ensure_tk()
+        for widget in self._frame.winfo_children():
+            widget.destroy()
+        self._turtle = None
+        self._canvas = None
+
+    def set_title(self, title: str) -> None:
+        self._ensure_tk()
+        self._root.title(title)
+
     def wait_for_close(self) -> None:
         self._ensure_tk()
         try:

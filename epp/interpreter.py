@@ -259,6 +259,16 @@ class Interpreter:
     def _exec_WaitForCloseStmt(self, node: ast.WaitForCloseStmt, env: Environment) -> None:
         self._get_visuals(node.line).wait_for_close()
 
+    def _exec_ClearWindowStmt(self, node: ast.ClearWindowStmt, env: Environment) -> None:
+        self._get_visuals(node.line).clear_window()
+
+    def _exec_SetTitleStmt(self, node: ast.SetTitleStmt, env: Environment) -> None:
+        title = format_value(self._eval(node.title, env))
+        self._get_visuals(node.line).set_title(title)
+
+    def _exec_ShuffleButtonsStmt(self, node: ast.ShuffleButtonsStmt, env: Environment) -> None:
+        self._get_visuals(node.line).shuffle_buttons()
+
     def _exec_MoveStmt(self, node: ast.MoveStmt, env: Environment) -> None:
         amount = self._eval(node.amount, env)
         self._check_number(amount, "move distance", node.line)

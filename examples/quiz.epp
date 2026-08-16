@@ -1,0 +1,212 @@
+Note Quiz Game with 20 questions across many topics.
+
+Let score be 0.
+Let question number be 1.
+Let total questions be 20.
+Let correct answer be 0.
+
+Note Answer handler functions each button sets picked and calls check.
+Define pick a,
+    Let picked be 1.
+    Call check answer.
+End define.
+
+Define pick b,
+    Let picked be 2.
+    Call check answer.
+End define.
+
+Define pick c,
+    Let picked be 3.
+    Call check answer.
+End define.
+
+Define pick d,
+    Let picked be 4.
+    Call check answer.
+End define.
+
+Define check answer,
+    If the value of picked is equal to the value of correct answer,
+        Add 1 to score.
+    End if.
+    Add 1 to question number.
+    If the value of question number is greater than the value of total questions,
+        Call show result.
+    Otherwise,
+        Call show question.
+    End if.
+End define.
+
+Define show result,
+    Clear window.
+    Set title to Quiz Complete.
+    Add label Quiz finished.
+    Add label Your score.
+    Add label the value of score plus out of plus total questions.
+    Let percentage be the value of score times 100 divided by total questions.
+    If the value of percentage is greater than or equal to 80,
+        Add label Excellent work.
+    Otherwise if the value of percentage is greater than or equal to 60,
+        Add label Good job.
+    Otherwise if the value of percentage is greater than or equal to 40,
+        Add label Not bad keep studying.
+    Otherwise,
+        Add label Better luck next time.
+    End if.
+End define.
+
+Define show question,
+    Clear window.
+    Set title to the value of Question plus question number plus of plus total questions.
+
+    If the value of question number is equal to 1,
+        Add label What is the capital of Australia.
+        Set correct answer to 3.
+        Add button with text London that calls pick a.
+        Add button with text New York that calls pick b.
+        Add button with text Canberra that calls pick c.
+        Add button with text Sydney that calls pick d.
+    Otherwise if the value of question number is equal to 2,
+        Add label How many planets are in our solar system.
+        Set correct answer to 2.
+        Add button with text 7 that calls pick a.
+        Add button with text 8 that calls pick b.
+        Add button with text 9 that calls pick c.
+        Add button with text 10 that calls pick d.
+    Otherwise if the value of question number is equal to 3,
+        Add label What is the chemical symbol for gold.
+        Set correct answer to 4.
+        Add button with text Gd that calls pick a.
+        Add button with text Go that calls pick b.
+        Add button with text Ag that calls pick c.
+        Add button with text Au that calls pick d.
+    Otherwise if the value of question number is equal to 4,
+        Add label Which ocean is the largest.
+        Set correct answer to 1.
+        Add button with text Pacific that calls pick a.
+        Add button with text Atlantic that calls pick b.
+        Add button with text Indian that calls pick c.
+        Add button with text Arctic that calls pick d.
+    Otherwise if the value of question number is equal to 5,
+        Add label What year did the Titanic sink.
+        Set correct answer to 3.
+        Add button with text 1905 that calls pick a.
+        Add button with text 1910 that calls pick b.
+        Add button with text 1912 that calls pick c.
+        Add button with text 1920 that calls pick d.
+    Otherwise if the value of question number is equal to 6,
+        Add label How many bones does an adult human have.
+        Set correct answer to 2.
+        Add button with text 186 that calls pick a.
+        Add button with text 206 that calls pick b.
+        Add button with text 226 that calls pick c.
+        Add button with text 256 that calls pick d.
+    Otherwise if the value of question number is equal to 7,
+        Add label What is the speed of light in km per second.
+        Set correct answer to 3.
+        Add button with text 150000 that calls pick a.
+        Add button with text 250000 that calls pick b.
+        Add button with text 300000 that calls pick c.
+        Add button with text 350000 that calls pick d.
+    Otherwise if the value of question number is equal to 8,
+        Add label Which planet is known as the Red Planet.
+        Set correct answer to 2.
+        Add button with text Venus that calls pick a.
+        Add button with text Mars that calls pick b.
+        Add button with text Jupiter that calls pick c.
+        Add button with text Saturn that calls pick d.
+    Otherwise if the value of question number is equal to 9,
+        Add label What is the largest mammal on Earth.
+        Set correct answer to 4.
+        Add button with text African Elephant that calls pick a.
+        Add button with text Giraffe that calls pick b.
+        Add button with text Great White Shark that calls pick c.
+        Add button with text Blue Whale that calls pick d.
+    Otherwise if the value of question number is equal to 10,
+        Add label Who painted the Mona Lisa.
+        Set correct answer to 1.
+        Add button with text Leonardo da Vinci that calls pick a.
+        Add button with text Michelangelo that calls pick b.
+        Add button with text Raphael that calls pick c.
+        Add button with text Donatello that calls pick d.
+    Otherwise if the value of question number is equal to 11,
+        Add label What is the smallest country in the world.
+        Set correct answer to 3.
+        Add button with text Monaco that calls pick a.
+        Add button with text San Marino that calls pick b.
+        Add button with text Vatican City that calls pick c.
+        Add button with text Liechtenstein that calls pick d.
+    Otherwise if the value of question number is equal to 12,
+        Add label How many chromosomes do humans have.
+        Set correct answer to 2.
+        Add button with text 23 that calls pick a.
+        Add button with text 46 that calls pick b.
+        Add button with text 44 that calls pick c.
+        Add button with text 48 that calls pick d.
+    Otherwise if the value of question number is equal to 13,
+        Add label What element does O represent on the periodic table.
+        Set correct answer to 4.
+        Add button with text Osmium that calls pick a.
+        Add button with text Gold that calls pick b.
+        Add button with text Oganesson that calls pick c.
+        Add button with text Oxygen that calls pick d.
+    Otherwise if the value of question number is equal to 14,
+        Add label In what year did World War 2 end.
+        Set correct answer to 1.
+        Add button with text 1945 that calls pick a.
+        Add button with text 1944 that calls pick b.
+        Add button with text 1946 that calls pick c.
+        Add button with text 1943 that calls pick d.
+    Otherwise if the value of question number is equal to 15,
+        Add label What is the longest river in the world.
+        Set correct answer to 3.
+        Add button with text Amazon that calls pick a.
+        Add button with text Mississippi that calls pick b.
+        Add button with text Nile that calls pick c.
+        Add button with text Yangtze that calls pick d.
+    Otherwise if the value of question number is equal to 16,
+        Add label What is the hardest natural substance.
+        Set correct answer to 2.
+        Add button with text Titanium that calls pick a.
+        Add button with text Diamond that calls pick b.
+        Add button with text Quartz that calls pick c.
+        Add button with text Graphene that calls pick d.
+    Otherwise if the value of question number is equal to 17,
+        Add label How many hearts does an octopus have.
+        Set correct answer to 4.
+        Add button with text 1 that calls pick a.
+        Add button with text 2 that calls pick b.
+        Add button with text 5 that calls pick c.
+        Add button with text 3 that calls pick d.
+    Otherwise if the value of question number is equal to 18,
+        Add label Which continent has the most countries.
+        Set correct answer to 1.
+        Add button with text Africa that calls pick a.
+        Add button with text Asia that calls pick b.
+        Add button with text Europe that calls pick c.
+        Add button with text South America that calls pick d.
+    Otherwise if the value of question number is equal to 19,
+        Add label What is the boiling point of water in Celsius.
+        Set correct answer to 3.
+        Add button with text 90 that calls pick a.
+        Add button with text 95 that calls pick b.
+        Add button with text 100 that calls pick c.
+        Add button with text 110 that calls pick d.
+    Otherwise if the value of question number is equal to 20,
+        Add label What gas do plants absorb from the atmosphere.
+        Set correct answer to 2.
+        Add button with text Oxygen that calls pick a.
+        Add button with text Carbon Dioxide that calls pick b.
+        Add button with text Nitrogen that calls pick c.
+        Add button with text Hydrogen that calls pick d.
+    End if.
+
+    Shuffle buttons.
+    Add label the value of Score plus score plus of plus total questions.
+End define.
+
+Open window with title Quiz Game.
+Set window size to 500 by 400.
+Call show question.
+Wait for close.
