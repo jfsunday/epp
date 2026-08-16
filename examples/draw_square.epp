@@ -1,0 +1,10 @@
+Define draw square,
+    Repeat 4 times,
+        Move forward 100 steps.
+        Turn right 90 degrees.
+    End repeat.
+End define.
+
+Open window with title Turtle Drawing.
+Add button with text Draw Square that calls draw square.
+Wait for close.

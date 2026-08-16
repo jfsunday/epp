@@ -1,0 +1,11 @@
+Define factorial that takes n,
+    If the value of n is less than or equal to 1,
+        Return 1.
+    End if.
+    Call factorial with the value of n minus 1 and store the result in sub result.
+    Return the value of n times sub result.
+End define.
+
+Ask for age with the message How old are you.
+Call factorial with the value of age and store the result in result.
+Say the value of result.

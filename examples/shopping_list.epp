@@ -1,0 +1,7 @@
+Let items be nothing yet.
+Repeat 3 times,
+    Ask for item with the message Enter an item.
+    Set items to the value of items plus the value of item.
+End repeat.
+Say Your list.
+Say the value of items.

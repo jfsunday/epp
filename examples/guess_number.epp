@@ -1,0 +1,14 @@
+Let secret be a random number between 1 and 100.
+Let found be no.
+Say I am thinking of a number between 1 and 100.
+While the value of found is equal to no,
+    Ask for guess with the message Your guess.
+    If the value of guess is equal to the value of secret,
+        Say Correct.
+        Set found to yes.
+    Otherwise if the value of guess is less than the value of secret,
+        Say Too low.
+    Otherwise,
+        Say Too high.
+    End if.
+End while.
