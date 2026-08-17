@@ -17,6 +17,7 @@ STMT_KEYWORDS = {
     "say", "ask", "define", "call", "return", "note",
     "open", "move", "turn", "pen", "draw", "wait", "clear", "shuffle",
     "start", "create", "remove", "for",
+    "respond", "insert", "select", "update", "delete", "close",
 }
 
 
@@ -198,6 +199,39 @@ class Parser:
                 self.expect_word("in")
                 name = self.read_identifier(stop_words)
                 return self._maybe_chain_ops(ast.EntryInExpr(key, name, line), stop_words)
+            elif peek_val == "mean":
+                self.advance()  # the
+                self.advance()  # mean
+                self.expect_word("of")
+                name = self.read_identifier(stop_words)
+                return self._maybe_chain_ops(ast.MeanOfExpr(name, line), stop_words)
+            elif peek_val == "sum":
+                self.advance()  # the
+                self.advance()  # sum
+                self.expect_word("of")
+                name = self.read_identifier(stop_words)
+                return self._maybe_chain_ops(ast.SumOfExpr(name, line), stop_words)
+            elif peek_val == "min":
+                self.advance()  # the
+                self.advance()  # min
+                self.expect_word("of")
+                name = self.read_identifier(stop_words)
+                return self._maybe_chain_ops(ast.MinOfExpr(name, line), stop_words)
+            elif peek_val == "max":
+                self.advance()  # the
+                self.advance()  # max
+                self.expect_word("of")
+                name = self.read_identifier(stop_words)
+                return self._maybe_chain_ops(ast.MaxOfExpr(name, line), stop_words)
+            elif peek_val == "dot":
+                self.advance()  # the
+                self.advance()  # dot
+                self.expect_word("product")
+                self.expect_word("of")
+                left = self.read_identifier({"and"} | stop_words)
+                self.expect_word("and")
+                right = self.read_identifier(stop_words)
+                return ast.DotProductExpr(left, right, line)
 
         # Free text (string literal) — greedy until PERIOD/COMMA/EOF or stop_word
         return self._parse_free_text(stop_words)
@@ -228,7 +262,7 @@ class Parser:
             left.value = -left.value
         elif self.at_word("the"):
             peek_val = self.peek(1).value.lower()
-            if peek_val in ("length", "keys", "entry", "value"):
+            if peek_val in ("length", "keys", "entry", "value", "mean", "sum", "min", "max", "dot"):
                 return self.parse_value(stop_words)
             else:
                 expr_stops = stop_words | {"plus", "minus", "times", "divided", "remainder",
@@ -379,7 +413,7 @@ class Parser:
             return self._parse_expression(stop_words)
         if self.at_word("the"):
             peek_val = self.peek(1).value.lower()
-            if peek_val in ("length", "keys", "entry"):
+            if peek_val in ("length", "keys", "entry", "mean", "sum", "min", "max", "dot"):
                 return self.parse_value(stop_words)
 
         # Variable reference
@@ -495,6 +529,18 @@ class Parser:
             return self._parse_remove(line)
         elif word == "for":
             return self._parse_for_each(line)
+        elif word == "respond":
+            return self._parse_respond(line)
+        elif word == "insert":
+            return self._parse_insert(line)
+        elif word == "select":
+            return self._parse_select(line)
+        elif word == "update":
+            return self._parse_update(line)
+        elif word == "delete":
+            return self._parse_delete(line)
+        elif word == "close":
+            return self._parse_close(line)
         else:
             raise EppParseError(f"unknown statement '{tok.value}'", line)
 
@@ -598,8 +644,27 @@ class Parser:
         return ast.SetStmt(name, value, line)
 
     def _parse_add(self, line: int) -> object:
-        """Add <value> to <name>.  OR  Add button/label/text box (§14)."""
+        """Add <value> to <name>.  OR  Add button/label/text box (§14). OR Add route."""
         self.advance()  # add
+
+        # Webserver: Add route METHOD PATH to HANDLER.
+        if self.at_word("route"):
+            self.advance()  # route
+            method = self.advance().value.upper()  # GET, POST, etc.
+            # Parse path: words until "to", "slash" becomes "/"
+            path = ""
+            while not self.at_word("to") and not self.at_kind(TokenKind.PERIOD) and not self.at_kind(TokenKind.EOF):
+                word = self.advance().value.lower()
+                if word == "slash":
+                    path += "/"
+                else:
+                    path += word
+            if not path:
+                path = "/"
+            self.expect_word("to")
+            handler = self.read_identifier(set(), allow_keywords=True)
+            self.skip_period()
+            return ast.AddRouteStmt(method, path, handler, line)
 
         # §14: Add button with text <text> that calls <fn>.
         if self.at_word("button"):
@@ -882,9 +947,19 @@ class Parser:
 
     # ── §14 Visual Statement Parsers ─────────────────────────────────
 
-    def _parse_open_window(self, line: int) -> ast.OpenWindowStmt:
-        """Open window with title <text>."""
+    def _parse_open_window(self, line: int) -> object:
+        """Open window with title <text>. OR Open a database called NAME."""
         self.advance()  # open
+
+        # Open a database called NAME.
+        if self.at_word("a"):
+            self.advance()  # a
+            self.expect_word("database")
+            self.expect_word("called")
+            name = self.parse_value()
+            self.skip_period()
+            return ast.OpenDatabaseStmt(name, line)
+
         self.expect_word("window")
         self.expect_word("with")
         self.expect_word("title")
@@ -947,10 +1022,14 @@ class Parser:
         self.skip_period()
         return ast.DrawCircleStmt(radius, line)
 
-    def _parse_wait(self, line: int) -> ast.WaitForCloseStmt:
-        """Wait for close."""
+    def _parse_wait(self, line: int) -> object:
+        """Wait for close. OR Wait for connections."""
         self.advance()  # wait
         self.expect_word("for")
+        if self.at_word("connections"):
+            self.advance()
+            self.skip_period()
+            return ast.WaitForConnectionsStmt(line)
         self.expect_word("close")
         self.skip_period()
         return ast.WaitForCloseStmt(line)
@@ -964,11 +1043,20 @@ class Parser:
         return ast.ClearWindowStmt(line)
 
 
-    def _parse_start(self, line: int) -> ast.StartGameStmt:
-        """Start a jump and run game."""
+    def _parse_start(self, line: int) -> object:
+        """Start a jump and run game. OR Start a webserver on port N."""
         self.advance()  # start
-        # Expect: a jump and run game
         self.expect_word("a")
+
+        if self.at_word("webserver"):
+            self.advance()  # webserver
+            self.expect_word("on")
+            self.expect_word("port")
+            port = self.parse_value()
+            self.skip_period()
+            return ast.StartWebserverStmt(port, line)
+
+        # Expect: jump and run game
         self.expect_word("jump")
         self.expect_word("and")
         self.expect_word("run")
@@ -979,7 +1067,7 @@ class Parser:
     # ── Data Structure Parsers ──────────────────────────────────────
 
     def _parse_create(self, line: int) -> object:
-        """Create a list/dictionary called <name>."""
+        """Create a list/dictionary/table called <name>."""
         self.advance()  # create
         self.expect_word("a")
         if self.at_word("list"):
@@ -994,8 +1082,17 @@ class Parser:
             name = self.read_identifier(set())
             self.skip_period()
             return ast.CreateDictStmt(name, line)
+        elif self.at_word("table"):
+            self.advance()  # table
+            self.expect_word("called")
+            table_name = self.read_identifier({"with"})
+            self.expect_word("with")
+            self.expect_word("columns")
+            columns = self._parse_name_list()
+            self.skip_period()
+            return ast.CreateTableStmt(table_name, columns, line)
         else:
-            raise EppParseError("expected 'list' or 'dictionary' after 'Create a'", line)
+            raise EppParseError("expected 'list', 'dictionary', or 'table' after 'Create a'", line)
 
     def _parse_remove(self, line: int) -> object:
         """Remove item/value/entry from list/dict."""
@@ -1044,6 +1141,146 @@ class Parser:
         self.skip_period()
 
         return ast.ForEachStmt(var_name, list_name, body, line)
+
+    # ── Webserver Parsers ───────────────────────────────────────────
+
+    def _parse_respond(self, line: int) -> ast.RespondWithStmt:
+        """Respond with VALUE. OR Respond with VALUE and status CODE."""
+        self.advance()  # respond
+        self.expect_word("with")
+        value = self.parse_value({"and"})
+        status_code = None
+        if self.at_word("and"):
+            self.advance()  # and
+            self.expect_word("status")
+            status_code = self.parse_value()
+        self.skip_period()
+        return ast.RespondWithStmt(value, status_code, line)
+
+    # ── Database Parsers ────────────────────────────────────────────
+
+    def _parse_name_list(self) -> list[str]:
+        """Parse a name list like: col1, col2, and col3 or just col1."""
+        names: list[str] = []
+        name = self.read_identifier({"and"}, allow_keywords=True)
+        names.append(name)
+
+        while self.at_kind(TokenKind.COMMA):
+            next_tok = self.peek(1)
+            if next_tok.kind == TokenKind.WORD and next_tok.value.lower() == "and":
+                self.advance()  # comma
+                self.advance()  # and
+                name = self.read_identifier(set(), allow_keywords=True)
+                names.append(name)
+                break
+            self.advance()  # comma
+            name = self.read_identifier({"and"}, allow_keywords=True)
+            names.append(name)
+
+        if self.at_word("and"):
+            self.advance()
+            name = self.read_identifier(set(), allow_keywords=True)
+            names.append(name)
+
+        return names
+
+    def _parse_insert(self, line: int) -> ast.InsertRowStmt:
+        """Insert into TABLE the values VAL1, VAL2, and VAL3."""
+        self.advance()  # insert
+        self.expect_word("into")
+        table_name = self.read_identifier({"the"})
+        self.expect_word("the")
+        self.expect_word("values")
+        values = self._parse_arg_list()
+        self.skip_period()
+        return ast.InsertRowStmt(table_name, values, line)
+
+    def _parse_where_clause(self) -> tuple[str, str, object]:
+        """Parse: where COLUMN is equal to / is greater than / etc. VALUE"""
+        self.expect_word("where")
+        column = self.read_identifier({"is"})
+        self.expect_word("is")
+
+        if self.at_word("equal"):
+            self.advance()
+            self.expect_word("to")
+            op = "eq"
+        elif self.at_word("not"):
+            self.advance()
+            self.expect_word("equal")
+            self.expect_word("to")
+            op = "ne"
+        elif self.at_word("greater"):
+            self.advance()
+            self.expect_word("than")
+            if self.at_word("or"):
+                self.advance()
+                self.expect_word("equal")
+                self.expect_word("to")
+                op = "ge"
+            else:
+                op = "gt"
+        elif self.at_word("less"):
+            self.advance()
+            self.expect_word("than")
+            if self.at_word("or"):
+                self.advance()
+                self.expect_word("equal")
+                self.expect_word("to")
+                op = "le"
+            else:
+                op = "lt"
+        else:
+            raise EppParseError("expected comparison operator after 'is'", self.current().line)
+
+        value = self.parse_value({"and"})
+        return column, op, value
+
+    def _parse_select(self, line: int) -> ast.SelectStmt:
+        """Select from TABLE [where ...] and store in VAR."""
+        self.advance()  # select
+        self.expect_word("from")
+        table_name = self.read_identifier({"where", "and"})
+
+        where_col = where_op = where_val = None
+        if self.at_word("where"):
+            where_col, where_op, where_val = self._parse_where_clause()
+
+        self.expect_word("and")
+        self.expect_word("store")
+        self.expect_word("in")
+        store_in = self.read_identifier(set())
+        self.skip_period()
+        return ast.SelectStmt(table_name, where_col, where_op, where_val, store_in, line)
+
+    def _parse_update(self, line: int) -> ast.UpdateRowStmt:
+        """Update TABLE set COLUMN to VALUE where COLUMN is equal to VALUE."""
+        self.advance()  # update
+        table_name = self.read_identifier({"set"})
+        self.expect_word("set")
+        set_column = self.read_identifier({"to"})
+        self.expect_word("to")
+        set_value = self.parse_value({"where"})
+        where_col, where_op, where_val = self._parse_where_clause()
+        self.skip_period()
+        return ast.UpdateRowStmt(table_name, set_column, set_value, where_col, where_op, where_val, line)
+
+    def _parse_delete(self, line: int) -> ast.DeleteRowStmt:
+        """Delete from TABLE where COLUMN is equal to VALUE."""
+        self.advance()  # delete
+        self.expect_word("from")
+        table_name = self.read_identifier({"where"})
+        where_col, where_op, where_val = self._parse_where_clause()
+        self.skip_period()
+        return ast.DeleteRowStmt(table_name, where_col, where_op, where_val, line)
+
+    def _parse_close(self, line: int) -> ast.CloseDatabaseStmt:
+        """Close the database."""
+        self.advance()  # close
+        self.expect_word("the")
+        self.expect_word("database")
+        self.skip_period()
+        return ast.CloseDatabaseStmt(line)
 
 
 def parse(tokens: list[Token]) -> list[object]:

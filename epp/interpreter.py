@@ -22,6 +22,10 @@ class Interpreter:
         self._say_fn = print
         self._input_fn = input
         self._visuals = None  # lazy-init
+        self._webserver = None  # lazy-init
+        self._web_response = None
+        self._web_status = 200
+        self._database = None  # lazy-init
 
     def run(self, statements: list[object]) -> None:
         """Execute a list of top-level statements."""
@@ -436,6 +440,133 @@ class Interpreter:
             root = self._visuals._root
         launch_game(interpreter=self, root=root)
 
+    # ── Webserver Executors ────────────────────────────────────────────
+
+    def _get_webserver(self, line: int):
+        if self._webserver is None:
+            from .webserver import EppWebserver
+            self._webserver = EppWebserver(self)
+        return self._webserver
+
+    def _exec_StartWebserverStmt(self, node: ast.StartWebserverStmt, env: Environment) -> None:
+        port = self._eval(node.port, env)
+        self._check_number(port, "port", node.line)
+        self._get_webserver(node.line).start(int(port))
+
+    def _exec_AddRouteStmt(self, node: ast.AddRouteStmt, env: Environment) -> None:
+        self._get_webserver(node.line).add_route(node.method, node.path, node.handler_name)
+
+    def _exec_RespondWithStmt(self, node: ast.RespondWithStmt, env: Environment) -> None:
+        self._web_response = self._eval(node.value, env)
+        if node.status_code is not None:
+            status = self._eval(node.status_code, env)
+            self._check_number(status, "status code", node.line)
+            self._web_status = int(status)
+
+    def _exec_WaitForConnectionsStmt(self, node: ast.WaitForConnectionsStmt, env: Environment) -> None:
+        ws = self._get_webserver(node.line)
+        ws.wait()
+
+    # ── Database Executors ──────────────────────────────────────────
+
+    def _get_database(self, line: int):
+        if self._database is None:
+            from .database import EppDatabase
+            self._database = EppDatabase()
+        return self._database
+
+    def _exec_OpenDatabaseStmt(self, node: ast.OpenDatabaseStmt, env: Environment) -> None:
+        name = format_value(self._eval(node.name, env))
+        self._get_database(node.line).open(name, node.line)
+
+    def _exec_CloseDatabaseStmt(self, node: ast.CloseDatabaseStmt, env: Environment) -> None:
+        self._get_database(node.line).close(node.line)
+
+    def _exec_CreateTableStmt(self, node: ast.CreateTableStmt, env: Environment) -> None:
+        self._get_database(node.line).create_table(node.table_name, node.columns, node.line)
+
+    def _exec_InsertRowStmt(self, node: ast.InsertRowStmt, env: Environment) -> None:
+        values = [self._eval(v, env) for v in node.values]
+        self._get_database(node.line).insert(node.table_name, values, node.line)
+
+    def _exec_SelectStmt(self, node: ast.SelectStmt, env: Environment) -> None:
+        where_val = self._eval(node.where_value, env) if node.where_value is not None else None
+        results = self._get_database(node.line).select(
+            node.table_name, node.where_column, node.where_op, where_val, node.line
+        )
+        if env.has(node.store_in):
+            env.set(node.store_in, results, node.line)
+        else:
+            env.define(node.store_in, results)
+
+    def _exec_UpdateRowStmt(self, node: ast.UpdateRowStmt, env: Environment) -> None:
+        set_val = self._eval(node.set_value, env)
+        where_val = self._eval(node.where_value, env)
+        self._get_database(node.line).update(
+            node.table_name, node.set_column, set_val,
+            node.where_column, node.where_op, where_val, node.line
+        )
+
+    def _exec_DeleteRowStmt(self, node: ast.DeleteRowStmt, env: Environment) -> None:
+        where_val = self._eval(node.where_value, env)
+        self._get_database(node.line).delete(
+            node.table_name, node.where_column, node.where_op, where_val, node.line
+        )
+
+    # ── ML Evaluators ───────────────────────────────────────────────
+
+    def _eval_MeanOfExpr(self, node: ast.MeanOfExpr, env: Environment) -> float:
+        val = env.get(node.name, node.line)
+        if not isinstance(val, list):
+            raise EppRuntimeError(f"'{node.name}' is not a list", node.line)
+        if not val:
+            raise EppRuntimeError(f"cannot compute mean of empty list", node.line)
+        nums = [self._as_number(v, node.line) for v in val]
+        return sum(nums) / len(nums)
+
+    def _eval_SumOfExpr(self, node: ast.SumOfExpr, env: Environment) -> float:
+        val = env.get(node.name, node.line)
+        if not isinstance(val, list):
+            raise EppRuntimeError(f"'{node.name}' is not a list", node.line)
+        return sum(self._as_number(v, node.line) for v in val)
+
+    def _eval_MinOfExpr(self, node: ast.MinOfExpr, env: Environment) -> float:
+        val = env.get(node.name, node.line)
+        if not isinstance(val, list):
+            raise EppRuntimeError(f"'{node.name}' is not a list", node.line)
+        if not val:
+            raise EppRuntimeError(f"cannot compute min of empty list", node.line)
+        return min(self._as_number(v, node.line) for v in val)
+
+    def _eval_MaxOfExpr(self, node: ast.MaxOfExpr, env: Environment) -> float:
+        val = env.get(node.name, node.line)
+        if not isinstance(val, list):
+            raise EppRuntimeError(f"'{node.name}' is not a list", node.line)
+        if not val:
+            raise EppRuntimeError(f"cannot compute max of empty list", node.line)
+        return max(self._as_number(v, node.line) for v in val)
+
+    def _eval_DotProductExpr(self, node: ast.DotProductExpr, env: Environment) -> float:
+        left = env.get(node.left_name, node.line)
+        right = env.get(node.right_name, node.line)
+        if not isinstance(left, list) or not isinstance(right, list):
+            raise EppRuntimeError("dot product requires two lists", node.line)
+        if len(left) != len(right):
+            raise EppRuntimeError(
+                f"dot product requires lists of equal length ({len(left)} vs {len(right)})",
+                node.line,
+            )
+        return sum(
+            self._as_number(a, node.line) * self._as_number(b, node.line)
+            for a, b in zip(left, right)
+        )
+
+    @staticmethod
+    def _as_number(value: object, line: int) -> float:
+        if isinstance(value, (int, float)):
+            return float(value)
+        raise EppRuntimeError(f"expected a number but got {type(value).__name__}", line)
+
     # ── Function Calling ─────────────────────────────────────────────
 
     def call_function(self, name: str, arg_nodes: list[object], env: Environment, line: int) -> object:
@@ -470,6 +601,24 @@ class Interpreter:
     def call_function_by_name(self, name: str) -> None:
         """Call a zero-arg function by name (used by button callbacks)."""
         self.call_function(name, [], self.globals, 0)
+
+    def call_function_with_values(self, name: str, values: list[object], line: int = 0) -> object:
+        """Call a function with pre-evaluated values (used by webserver)."""
+        if name not in self.functions:
+            raise EppRuntimeError(f"the function '{name}' has not been defined", line)
+
+        func = self.functions[name]
+        local_env = Environment(parent=self.globals)
+        for param_name, val in zip(func.params, values):
+            local_env.define(param_name, val)
+
+        try:
+            for stmt in func.body:
+                self._exec(stmt, local_env)
+        except _ReturnSignal as ret:
+            return ret.value
+
+        return 0.0
 
     # ── Helpers ──────────────────────────────────────────────────────
 

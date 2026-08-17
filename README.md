@@ -215,6 +215,55 @@ Set pen color to red.
 Draw circle with radius 50.
 ```
 
+### Webserver
+
+```
+Start a webserver on port 8080.
+
+Define handle home that takes request,
+    Respond with Hello World.
+End define.
+
+Define handle api that takes request,
+    Create a dictionary called data.
+    Set the entry status in data to ok.
+    Respond with the value of data.
+End define.
+
+Add route GET slash to handle home.
+Add route GET slash api to handle api.
+Wait for connections.
+```
+
+Routes use `slash` for `/` — `slash api slash users` becomes `/api/users`. Responding with a dictionary auto-serializes to JSON. Custom status codes: `Respond with error and status 404.`
+
+### Database (SQLite)
+
+```
+Open a database called myapp.
+Create a table called users with columns name and age.
+Insert into users the values Alice and 30.
+Select from users and store in results.
+Select from users where name is equal to Alice and store in found.
+Update users set age to 31 where name is equal to Alice.
+Delete from users where name is equal to Alice.
+Close the database.
+```
+
+Directly integrated via SQLite — no imports needed. Select returns a list of dictionaries. Supports all comparison operators in WHERE clauses.
+
+### Math Operations
+
+```
+Let avg be the mean of scores.
+Let total be the sum of scores.
+Let smallest be the min of scores.
+Let largest be the max of scores.
+Let result be the dot product of X and Y.
+```
+
+Works on lists of numbers. No external dependencies needed.
+
 ### Games
 
 ```
@@ -241,6 +290,8 @@ Launches a 2D side-scrolling platformer with:
 | `quiz.epp` | Multi-category quiz game with 30 questions, scoring, and themed UI |
 | `jumper.epp` | Procedurally generated 2D jump'n'run game |
 | `vocab.epp` | Latin vocabulary trainer using lists and dictionaries |
+| `api.epp` | REST API webserver with JSON responses |
+| `database.epp` | SQLite database with CRUD operations |
 
 ## Spec Deviations
 
@@ -251,6 +302,12 @@ Launches a 2D side-scrolling platformer with:
 **Responsive sizing** — Widget fonts and layout adapt to window size changes. Not specified in the original spec but follows the spirit of usable visual output.
 
 **Data structures** — Lists and dictionaries extend the original spec with collection types. Adds `Create`, `Remove`, `For each`, `item of`, `the length of`, `the keys of`, `the entry in`, `contains`, and `has the entry`. `Add` is overloaded to append to lists at runtime.
+
+**Webserver** — Built-in HTTP server using Python's `http.server`. Adds `Start a webserver`, `Add route`, `Respond with`, and `Wait for connections`. Dict responses auto-serialize to JSON.
+
+**Database** — Integrated SQLite database. Adds `Open a database`, `Create a table`, `Insert into`, `Select from`, `Update`, `Delete from`, and `Close the database`. No imports needed.
+
+**Math operations** — `the mean of`, `the sum of`, `the min of`, `the max of`, and `the dot product of` work on lists of numbers without external dependencies.
 
 ## Requirements
 

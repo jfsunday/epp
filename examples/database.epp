@@ -1,0 +1,27 @@
+Note, Database example with SQLite.
+
+Open a database called school.
+Create a table called students with columns name and grade.
+
+Insert into students the values Alice and 1.
+Insert into students the values Bob and 2.
+Insert into students the values Charlie and 1.
+
+Say All students.
+Select from students and store in all.
+For each student in all,
+    Say the entry name in student.
+End for each.
+
+Say Grade 1 students.
+Select from students where grade is equal to 1 and store in grade one.
+Say the length of grade one.
+
+Update students set grade to 2 where name is equal to Alice.
+Delete from students where name is equal to Charlie.
+
+Select from students and store in remaining.
+Say Remaining students.
+Say the length of remaining.
+
+Close the database.

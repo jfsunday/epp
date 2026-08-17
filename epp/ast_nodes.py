@@ -372,6 +372,124 @@ class HasEntryExpr:
     line: int
 
 
+# ── Webserver Statements ─────────────────────────────────────────────
+
+@dataclass
+class StartWebserverStmt:
+    port: Any
+    line: int
+
+
+@dataclass
+class AddRouteStmt:
+    method: str
+    path: str
+    handler_name: str
+    line: int
+
+
+@dataclass
+class RespondWithStmt:
+    value: Any
+    status_code: Any | None
+    line: int
+
+
+@dataclass
+class WaitForConnectionsStmt:
+    line: int
+
+
+# ── Database Statements ─────────────────────────────────────────────
+
+@dataclass
+class OpenDatabaseStmt:
+    name: Any
+    line: int
+
+
+@dataclass
+class CloseDatabaseStmt:
+    line: int
+
+
+@dataclass
+class CreateTableStmt:
+    table_name: str
+    columns: list[str]
+    line: int
+
+
+@dataclass
+class InsertRowStmt:
+    table_name: str
+    values: list[Any]
+    line: int
+
+
+@dataclass
+class SelectStmt:
+    table_name: str
+    where_column: str | None
+    where_op: str | None
+    where_value: Any | None
+    store_in: str
+    line: int
+
+
+@dataclass
+class UpdateRowStmt:
+    table_name: str
+    set_column: str
+    set_value: Any
+    where_column: str
+    where_op: str
+    where_value: Any
+    line: int
+
+
+@dataclass
+class DeleteRowStmt:
+    table_name: str
+    where_column: str
+    where_op: str
+    where_value: Any
+    line: int
+
+
+# ── ML Expressions ──────────────────────────────────────────────────
+
+@dataclass
+class MeanOfExpr:
+    name: str
+    line: int
+
+
+@dataclass
+class SumOfExpr:
+    name: str
+    line: int
+
+
+@dataclass
+class MinOfExpr:
+    name: str
+    line: int
+
+
+@dataclass
+class MaxOfExpr:
+    name: str
+    line: int
+
+
+@dataclass
+class DotProductExpr:
+    left_name: str
+    right_name: str
+    line: int
+
+
 # ── Game Statements ───────────────────────────────────────────────────
 
 @dataclass
