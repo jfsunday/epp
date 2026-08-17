@@ -19,7 +19,7 @@ Add route GET slash to handle home.
 """)
         ws = interp._webserver
         assert ws is not None
-        assert ("GET", "/") in ws.routes
+        assert any(m == "GET" and p == "/" for m, p, *_ in ws.routes)
 
         # Make a real HTTP request
         time.sleep(0.1)
@@ -75,7 +75,7 @@ Start a webserver on port 9874.
 Add route GET slash api slash users to handler.
 """)
         ws = interp._webserver
-        assert ("GET", "/api/users") in ws.routes
+        assert any(m == "GET" and p == "/api/users" for m, p, *_ in ws.routes)
         ws.stop()
 
 

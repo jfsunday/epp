@@ -386,6 +386,7 @@ class AddRouteStmt:
     path: str
     handler_name: str
     line: int
+    params: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -495,4 +496,203 @@ class DotProductExpr:
 @dataclass
 class StartGameStmt:
     game_type: str  # "jump and run"
+    line: int
+
+
+# ── File I/O Statements ────────────────────────────────────────────
+
+@dataclass
+class ReadFileStmt:
+    file_path: Any
+    store_in: str
+    line: int
+
+
+@dataclass
+class WriteFileStmt:
+    value: Any
+    file_path: Any
+    line: int
+
+
+# ── Webserver Extension Statements ─────────────────────────────────
+
+@dataclass
+class SetContentTypeStmt:
+    content_type: str
+    line: int
+
+
+@dataclass
+class EnableCORSStmt:
+    line: int
+
+
+@dataclass
+class ServeStaticStmt:
+    folder: Any
+    line: int
+
+
+# ── String Operation Expressions ───────────────────────────────────
+
+@dataclass
+class LowercaseOfExpr:
+    value: Any
+    line: int
+
+
+@dataclass
+class UppercaseOfExpr:
+    value: Any
+    line: int
+
+
+@dataclass
+class SplitByExpr:
+    value: Any
+    delimiter: Any
+    line: int
+
+
+@dataclass
+class SubstringOfExpr:
+    value: Any
+    start: Any
+    end: Any
+    line: int
+
+
+@dataclass
+class PositionOfExpr:
+    needle: Any
+    haystack: Any
+    line: int
+
+
+@dataclass
+class ReplaceExpr:
+    text: Any
+    old: Any
+    new: Any
+    line: int
+
+
+# ── Timestamp Expressions ──────────────────────────────────────────
+
+@dataclass
+class CurrentTimestampExpr:
+    line: int
+
+
+@dataclass
+class CurrentDateExpr:
+    line: int
+
+
+@dataclass
+class CurrentTimeExpr:
+    line: int
+
+
+# ── Random Item Expression ─────────────────────────────────────────
+
+@dataclass
+class RandomItemExpr:
+    list_name: str
+    line: int
+
+
+# ── Type Conversion Expressions ────────────────────────────────────
+
+@dataclass
+class NumberOfExpr:
+    value: Any
+    line: int
+
+
+@dataclass
+class TextOfExpr:
+    value: Any
+    line: int
+
+
+# ── Request Access Expressions ─────────────────────────────────────
+
+@dataclass
+class BodyOfExpr:
+    var_name: str
+    line: int
+
+
+@dataclass
+class PathParamExpr:
+    param_name: str
+    var_name: str
+    line: int
+
+
+@dataclass
+class QueryParamExpr:
+    param_name: str
+    var_name: str
+    line: int
+
+
+# ── GUI Extension Statements ──────────────────────────────────────
+
+@dataclass
+class AddDropdownStmt:
+    name: str
+    options: list[str]
+    line: int
+
+
+@dataclass
+class DropdownValueExpr:
+    name: str
+    line: int
+
+
+@dataclass
+class AddTableStmt:
+    name: str
+    columns: list[str]
+    line: int
+
+
+@dataclass
+class AddRowStmt:
+    table_name: str
+    values: list[Any]
+    line: int
+
+
+@dataclass
+class ClearTableStmt:
+    name: str
+    line: int
+
+
+@dataclass
+class WaitSecondsStmt:
+    seconds: Any
+    line: int
+
+
+@dataclass
+class ClearTextBoxStmt:
+    name: str
+    line: int
+
+
+@dataclass
+class ShowMessageStmt:
+    text: Any
+    line: int
+
+
+@dataclass
+class ShowErrorStmt:
+    text: Any
     line: int

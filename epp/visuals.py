@@ -238,6 +238,80 @@ class Visuals:
         self._ensure_tk()
         self._font_size = size
 
+    # ── GUI Extensions ────────────────────────────────────────────────
+
+    def add_dropdown(self, name: str, options: list[str]) -> None:
+        self._ensure_tk()
+        import tkinter as tk
+        var = tk.StringVar(self._root, value=options[0] if options else "")
+
+        def _on_change(*_):
+            self._interpreter.globals.define(f"__dropdown_{name}", var.get())
+
+        var.trace_add("write", _on_change)
+        # Set initial value
+        self._interpreter.globals.define(f"__dropdown_{name}", var.get())
+
+        menu = tk.OptionMenu(self._frame, var, *options)
+        menu.configure(
+            fg=self._text_color, bg=_DEFAULT_BTN_BG,
+            activeforeground=self._text_color, activebackground=_DEFAULT_BTN_HOVER,
+            font=self._font(), relief="flat", highlightthickness=0,
+        )
+        menu["menu"].configure(
+            fg=self._text_color, bg=_DEFAULT_BTN_BG,
+            activeforeground=self._text_color, activebackground=_DEFAULT_BTN_HOVER,
+            font=self._font(),
+        )
+        menu.pack(pady=4, fill="x", padx=30)
+        self._widgets.append((menu, "dropdown"))
+
+    def add_table(self, name: str, columns: list[str]) -> None:
+        self._ensure_tk()
+        import tkinter as tk
+        from tkinter import ttk
+
+        style = ttk.Style()
+        style.theme_use("clam")
+        style.configure("Epp.Treeview",
+                         background=_DEFAULT_BTN_BG, foreground=self._text_color,
+                         fieldbackground=_DEFAULT_BTN_BG, font=self._font())
+        style.configure("Epp.Treeview.Heading",
+                         background="#45475a", foreground=self._text_color,
+                         font=self._font(bold=True))
+
+        tree = ttk.Treeview(self._frame, columns=columns, show="headings",
+                            style="Epp.Treeview")
+        for col in columns:
+            tree.heading(col, text=col)
+            tree.column(col, width=120, anchor="center")
+        tree.pack(pady=6, fill="both", expand=True, padx=30)
+        self._interpreter.globals.define(f"__table_{name}", tree)
+
+    def add_row(self, table_name: str, values: list[str]) -> None:
+        tree = self._interpreter.globals.get(f"__table_{table_name}", 0)
+        tree.insert("", "end", values=values)
+
+    def clear_table(self, name: str) -> None:
+        tree = self._interpreter.globals.get(f"__table_{name}", 0)
+        for item in tree.get_children():
+            tree.delete(item)
+
+    def clear_text_box(self, name: str) -> None:
+        self._ensure_tk()
+        entry = self._interpreter.globals.get(f"__textbox_{name}", 0)
+        entry.delete(0, "end")
+
+    def show_message(self, text: str) -> None:
+        self._ensure_tk()
+        from tkinter import messagebox
+        messagebox.showinfo("E++", text)
+
+    def show_error(self, text: str) -> None:
+        self._ensure_tk()
+        from tkinter import messagebox
+        messagebox.showerror("E++", text)
+
     # ── Turtle commands ──────────────────────────────────────────────
 
     def turtle_forward(self, steps: int) -> None:

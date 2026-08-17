@@ -18,6 +18,7 @@ STMT_KEYWORDS = {
     "open", "move", "turn", "pen", "draw", "wait", "clear", "shuffle",
     "start", "create", "remove", "for",
     "respond", "insert", "select", "update", "delete", "close",
+    "read", "write", "enable", "serve", "show",
 }
 
 
@@ -143,31 +144,21 @@ class Parser:
             operand = self.parse_value(stop_words)
             return ast.NotOp(operand, line)
 
-        # "a random number between X and Y"
+        # "a random number between X and Y" or "a random item from LIST"
         if self.at_word("a") and self.peek(1).value.lower() == "random":
             self.advance()  # a
-            self.expect_word("random")
+            self.advance()  # random
+            if self.at_word("item"):
+                self.advance()  # item
+                self.expect_word("from")
+                name = self.read_identifier(stop_words)
+                return ast.RandomItemExpr(name, line)
             self.expect_word("number")
             self.expect_word("between")
             low = self.parse_value({"and"})
             self.expect_word("and")
             high = self.parse_value(stop_words)
             return ast.RandomBetween(low, high, line)
-
-        # "the value of <expr>"
-        if self.at_word("the") and self.peek(1).value.lower() == "value":
-            self.advance()  # the
-            self.advance()  # value
-            self.expect_word("of")
-            return self._parse_expression(stop_words)
-
-        # "the text box <name>" - for reading textbox values
-        if self.at_word("the") and self.peek(1).value.lower() == "text":
-            self.advance()  # the
-            self.advance()  # text
-            self.expect_word("box")
-            name = self.read_identifier(stop_words)
-            return ast.VarRef(f"__textbox_{name}", line)
 
         # "item N of LIST"
         if self.at_word("item"):
@@ -177,10 +168,32 @@ class Parser:
             name = self.read_identifier(stop_words)
             return self._maybe_chain_ops(ast.ItemOfExpr(index, name, line), stop_words)
 
-        # "the length of X", "the keys of X", "the entry KEY in DICT"
+        # Unified "the ..." handler
         if self.at_word("the"):
             peek_val = self.peek(1).value.lower()
-            if peek_val == "length":
+
+            if peek_val == "value":
+                self.advance()  # the
+                self.advance()  # value
+                self.expect_word("of")
+                return self._parse_expression(stop_words)
+
+            elif peek_val == "text":
+                peek2 = self.peek(2).value.lower()
+                if peek2 == "box":
+                    self.advance()  # the
+                    self.advance()  # text
+                    self.advance()  # box
+                    name = self.read_identifier(stop_words)
+                    return ast.VarRef(f"__textbox_{name}", line)
+                elif peek2 == "of":
+                    self.advance()  # the
+                    self.advance()  # text
+                    self.advance()  # of
+                    name = self.read_identifier(stop_words)
+                    return self._maybe_chain_ops(ast.TextOfExpr(ast.VarRef(name, line), line), stop_words)
+
+            elif peek_val == "length":
                 self.advance()  # the
                 self.advance()  # length
                 self.expect_word("of")
@@ -233,6 +246,102 @@ class Parser:
                 right = self.read_identifier(stop_words)
                 return ast.DotProductExpr(left, right, line)
 
+            # ── String operation expressions ──
+            elif peek_val == "lowercase":
+                self.advance()  # the
+                self.advance()  # lowercase
+                self.expect_word("of")
+                name = self.read_identifier(stop_words)
+                return self._maybe_chain_ops(ast.LowercaseOfExpr(ast.VarRef(name, line), line), stop_words)
+            elif peek_val == "uppercase":
+                self.advance()  # the
+                self.advance()  # uppercase
+                self.expect_word("of")
+                name = self.read_identifier(stop_words)
+                return self._maybe_chain_ops(ast.UppercaseOfExpr(ast.VarRef(name, line), line), stop_words)
+            elif peek_val == "split":
+                self.advance()  # the
+                self.advance()  # split
+                self.expect_word("of")
+                name = self.read_identifier({"by"} | stop_words)
+                self.expect_word("by")
+                delim = self.parse_value(stop_words)
+                return ast.SplitByExpr(ast.VarRef(name, line), delim, line)
+            elif peek_val == "substring":
+                self.advance()  # the
+                self.advance()  # substring
+                self.expect_word("of")
+                name = self.read_identifier({"from"} | stop_words)
+                self.expect_word("from")
+                start = self.parse_value({"to"} | stop_words)
+                self.expect_word("to")
+                end = self.parse_value(stop_words)
+                return ast.SubstringOfExpr(ast.VarRef(name, line), start, end, line)
+            elif peek_val == "position":
+                self.advance()  # the
+                self.advance()  # position
+                self.expect_word("of")
+                needle = self.parse_value({"in"} | stop_words)
+                self.expect_word("in")
+                name = self.read_identifier(stop_words)
+                return ast.PositionOfExpr(needle, ast.VarRef(name, line), line)
+            elif peek_val == "number":
+                self.advance()  # the
+                self.advance()  # number
+                self.expect_word("of")
+                name = self.read_identifier(stop_words)
+                return self._maybe_chain_ops(ast.NumberOfExpr(ast.VarRef(name, line), line), stop_words)
+
+            # ── Timestamp expressions ──
+            elif peek_val == "current":
+                peek2 = self.peek(2).value.lower()
+                if peek2 == "timestamp":
+                    self.advance()  # the
+                    self.advance()  # current
+                    self.advance()  # timestamp
+                    return self._maybe_chain_ops(ast.CurrentTimestampExpr(line), stop_words)
+                elif peek2 == "date":
+                    self.advance()  # the
+                    self.advance()  # current
+                    self.advance()  # date
+                    return self._maybe_chain_ops(ast.CurrentDateExpr(line), stop_words)
+                elif peek2 == "time":
+                    self.advance()  # the
+                    self.advance()  # current
+                    self.advance()  # time
+                    return self._maybe_chain_ops(ast.CurrentTimeExpr(line), stop_words)
+
+            # ── Request access expressions ──
+            elif peek_val == "body":
+                self.advance()  # the
+                self.advance()  # body
+                self.expect_word("of")
+                name = self.read_identifier(stop_words)
+                return ast.BodyOfExpr(name, line)
+            elif peek_val == "path":
+                self.advance()  # the
+                self.advance()  # path
+                self.expect_word("parameter")
+                param = self.read_identifier({"of"} | stop_words)
+                self.expect_word("of")
+                name = self.read_identifier(stop_words)
+                return ast.PathParamExpr(param, name, line)
+            elif peek_val == "query":
+                self.advance()  # the
+                self.advance()  # query
+                self.expect_word("parameter")
+                param = self.read_identifier({"of"} | stop_words)
+                self.expect_word("of")
+                name = self.read_identifier(stop_words)
+                return ast.QueryParamExpr(param, name, line)
+
+            # ── GUI value expressions ──
+            elif peek_val == "dropdown":
+                self.advance()  # the
+                self.advance()  # dropdown
+                name = self.read_identifier(stop_words)
+                return ast.DropdownValueExpr(name, line)
+
         # Free text (string literal) — greedy until PERIOD/COMMA/EOF or stop_word
         return self._parse_free_text(stop_words)
 
@@ -249,6 +358,9 @@ class Parser:
         val = int(int_part)
         return ast.NumberLit(float(val), line)
 
+    _EXPR_OPS = {"plus", "minus", "times", "divided", "remainder",
+                  "is", "and", "or", "contains", "has", "joined", "with", "replaced"}
+
     def _parse_expression(self, stop_words: set[str]) -> object:
         """Parse an expression: variable reference possibly chained with operators."""
         line = self.current().line
@@ -262,17 +374,17 @@ class Parser:
             left.value = -left.value
         elif self.at_word("the"):
             peek_val = self.peek(1).value.lower()
-            if peek_val in ("length", "keys", "entry", "value", "mean", "sum", "min", "max", "dot"):
+            if peek_val in ("length", "keys", "entry", "value", "mean", "sum", "min", "max", "dot",
+                            "lowercase", "uppercase", "split", "substring", "position",
+                            "number", "text", "current", "body", "path", "query", "dropdown"):
                 return self.parse_value(stop_words)
             else:
-                expr_stops = stop_words | {"plus", "minus", "times", "divided", "remainder",
-                                            "is", "and", "or", "contains", "has"}
+                expr_stops = stop_words | self._EXPR_OPS
                 name = self.read_identifier(expr_stops)
                 left = ast.VarRef(name, line)
         else:
             # Variable reference — read identifier stopping at operators and stop_words
-            expr_stops = stop_words | {"plus", "minus", "times", "divided", "remainder",
-                                        "is", "and", "or", "contains", "has"}
+            expr_stops = stop_words | self._EXPR_OPS
             name = self.read_identifier(expr_stops)
             left = ast.VarRef(name, line)
 
@@ -356,6 +468,25 @@ class Parser:
                     self.pos = saved
                     break
 
+            # String operators
+            elif self.at_word("joined"):
+                self.advance()  # joined
+                self.expect_word("with")
+                right = self._parse_operand(stop_words)
+                left = ast.BinaryOp("joined_with", left, right, line)
+            elif self.at_word("with"):
+                saved_with = self.pos
+                self.advance()  # with
+                old_val = self._parse_operand({"replaced"} | stop_words)
+                if self.at_word("replaced"):
+                    self.advance()  # replaced
+                    self.expect_word("by")
+                    new_val = self._parse_operand(stop_words)
+                    left = ast.ReplaceExpr(left, old_val, new_val, line)
+                else:
+                    self.pos = saved_with
+                    break
+
             # Collection operators
             elif self.at_word("contains"):
                 self.advance()
@@ -413,12 +544,13 @@ class Parser:
             return self._parse_expression(stop_words)
         if self.at_word("the"):
             peek_val = self.peek(1).value.lower()
-            if peek_val in ("length", "keys", "entry", "mean", "sum", "min", "max", "dot"):
+            if peek_val in ("length", "keys", "entry", "mean", "sum", "min", "max", "dot",
+                            "lowercase", "uppercase", "split", "substring", "position",
+                            "number", "text", "current", "body", "path", "query", "dropdown"):
                 return self.parse_value(stop_words)
 
         # Variable reference
-        expr_stops = stop_words | {"plus", "minus", "times", "divided", "remainder",
-                                    "is", "and", "or", "contains", "has"}
+        expr_stops = stop_words | self._EXPR_OPS
         name = self.read_identifier(expr_stops)
         return ast.VarRef(name, line)
 
@@ -541,6 +673,16 @@ class Parser:
             return self._parse_delete(line)
         elif word == "close":
             return self._parse_close(line)
+        elif word == "read":
+            return self._parse_read_file(line)
+        elif word == "write":
+            return self._parse_write_file(line)
+        elif word == "enable":
+            return self._parse_enable(line)
+        elif word == "serve":
+            return self._parse_serve(line)
+        elif word == "show":
+            return self._parse_show(line)
         else:
             raise EppParseError(f"unknown statement '{tok.value}'", line)
 
@@ -616,6 +758,22 @@ class Parser:
             self.skip_period()
             return ast.SetFontSizeStmt(size, line)
 
+        # Check for "Set content type to <type>"
+        if self.at_word("content"):
+            self.advance()  # content
+            self.expect_word("type")
+            self.expect_word("to")
+            # Parse content type, replacing "slash" with "/"
+            parts: list[str] = []
+            while not self.at_kind(TokenKind.PERIOD) and not self.at_kind(TokenKind.EOF):
+                word_val = self.advance().value
+                if word_val.lower() == "slash":
+                    parts.append("/")
+                else:
+                    parts.append(word_val.lower())
+            self.skip_period()
+            return ast.SetContentTypeStmt("".join(parts), line)
+
         # Check for "Set pen color to <color>"
         if self.at_word("pen"):
             self.advance()  # pen
@@ -651,12 +809,17 @@ class Parser:
         if self.at_word("route"):
             self.advance()  # route
             method = self.advance().value.upper()  # GET, POST, etc.
-            # Parse path: words until "to", "slash" becomes "/"
+            # Parse path: words until "to", "slash" becomes "/", "param X" becomes ":X"
             path = ""
+            params = []
             while not self.at_word("to") and not self.at_kind(TokenKind.PERIOD) and not self.at_kind(TokenKind.EOF):
                 word = self.advance().value.lower()
                 if word == "slash":
                     path += "/"
+                elif word == "param":
+                    param_name = self.advance().value.lower()
+                    params.append(param_name)
+                    path += ":" + param_name
                 else:
                     path += word
             if not path:
@@ -664,7 +827,7 @@ class Parser:
             self.expect_word("to")
             handler = self.read_identifier(set(), allow_keywords=True)
             self.skip_period()
-            return ast.AddRouteStmt(method, path, handler, line)
+            return ast.AddRouteStmt(method, path, handler, line, params)
 
         # §14: Add button with text <text> that calls <fn>.
         if self.at_word("button"):
@@ -692,6 +855,37 @@ class Parser:
             name = self.read_identifier(set(), allow_keywords=True)
             self.skip_period()
             return ast.AddTextBoxStmt(name, line)
+
+        # GUI: Add dropdown NAME with options A, B, C.
+        if self.at_word("dropdown"):
+            self.advance()  # dropdown
+            name = self.read_identifier({"with"}, allow_keywords=True)
+            self.expect_word("with")
+            self.expect_word("options")
+            options = self._parse_name_list()
+            self.skip_period()
+            return ast.AddDropdownStmt(name, options, line)
+
+        # GUI: Add table NAME with columns A, B, C.
+        if self.at_word("table"):
+            self.advance()  # table
+            name = self.read_identifier({"with"}, allow_keywords=True)
+            self.expect_word("with")
+            self.expect_word("columns")
+            columns = self._parse_name_list()
+            self.skip_period()
+            return ast.AddTableStmt(name, columns, line)
+
+        # GUI: Add row to TABLE with values A, B, C.
+        if self.at_word("row"):
+            self.advance()  # row
+            self.expect_word("to")
+            table_name = self.read_identifier({"with"}, allow_keywords=True)
+            self.expect_word("with")
+            self.expect_word("values")
+            values = self._parse_arg_list()
+            self.skip_period()
+            return ast.AddRowStmt(table_name, values, line)
 
         # Arithmetic: Add <value> to <name>.
         value = self.parse_value({"to"})
@@ -1023,8 +1217,16 @@ class Parser:
         return ast.DrawCircleStmt(radius, line)
 
     def _parse_wait(self, line: int) -> object:
-        """Wait for close. OR Wait for connections."""
+        """Wait for close. OR Wait for connections. OR Wait N seconds."""
         self.advance()  # wait
+
+        # Wait N seconds.
+        if self.current().kind == TokenKind.NUMBER:
+            seconds = self.parse_value({"seconds"})
+            self.expect_word("seconds")
+            self.skip_period()
+            return ast.WaitSecondsStmt(seconds, line)
+
         self.expect_word("for")
         if self.at_word("connections"):
             self.advance()
@@ -1035,9 +1237,23 @@ class Parser:
         return ast.WaitForCloseStmt(line)
 
 
-    def _parse_clear(self, line: int) -> ast.ClearWindowStmt:
-        """Clear window."""
+    def _parse_clear(self, line: int) -> object:
+        """Clear window. OR Clear text box NAME. OR Clear table NAME."""
         self.advance()  # clear
+
+        if self.at_word("text"):
+            self.advance()  # text
+            self.expect_word("box")
+            name = self.read_identifier(set(), allow_keywords=True)
+            self.skip_period()
+            return ast.ClearTextBoxStmt(name, line)
+
+        if self.at_word("table"):
+            self.advance()  # table
+            name = self.read_identifier(set(), allow_keywords=True)
+            self.skip_period()
+            return ast.ClearTableStmt(name, line)
+
         self.expect_word("window")
         self.skip_period()
         return ast.ClearWindowStmt(line)
@@ -1281,6 +1497,72 @@ class Parser:
         self.expect_word("database")
         self.skip_period()
         return ast.CloseDatabaseStmt(line)
+
+
+    # ── File I/O Parsers ─────────────────────────────────────────────
+
+    def _parse_read_file(self, line: int) -> ast.ReadFileStmt:
+        """Read the file PATH and store it in VAR."""
+        self.advance()  # read
+        self.expect_word("the")
+        self.expect_word("file")
+        file_path = self.parse_value({"and"})
+        self.expect_word("and")
+        self.expect_word("store")
+        self.expect_word("it")
+        self.expect_word("in")
+        store_in = self.read_identifier(set())
+        self.skip_period()
+        return ast.ReadFileStmt(file_path, store_in, line)
+
+    def _parse_write_file(self, line: int) -> ast.WriteFileStmt:
+        """Write VALUE to the file PATH."""
+        self.advance()  # write
+        value = self.parse_value({"to"})
+        self.expect_word("to")
+        self.expect_word("the")
+        self.expect_word("file")
+        file_path = self.parse_value()
+        self.skip_period()
+        return ast.WriteFileStmt(value, file_path, line)
+
+    # ── Webserver Extension Parsers ────────────────────────────────
+
+    def _parse_enable(self, line: int) -> ast.EnableCORSStmt:
+        """Enable CORS."""
+        self.advance()  # enable
+        self.expect_word("cors")
+        self.skip_period()
+        return ast.EnableCORSStmt(line)
+
+    def _parse_serve(self, line: int) -> ast.ServeStaticStmt:
+        """Serve static files from the folder FOLDER."""
+        self.advance()  # serve
+        self.expect_word("static")
+        self.expect_word("files")
+        self.expect_word("from")
+        self.expect_word("the")
+        self.expect_word("folder")
+        folder = self.parse_value()
+        self.skip_period()
+        return ast.ServeStaticStmt(folder, line)
+
+    # ── GUI Extension Parsers ──────────────────────────────────────
+
+    def _parse_show(self, line: int) -> object:
+        """Show message TEXT. OR Show error TEXT."""
+        self.advance()  # show
+        if self.at_word("message"):
+            self.advance()  # message
+            text = self.parse_value()
+            self.skip_period()
+            return ast.ShowMessageStmt(text, line)
+        elif self.at_word("error"):
+            self.advance()  # error
+            text = self.parse_value()
+            self.skip_period()
+            return ast.ShowErrorStmt(text, line)
+        raise EppParseError("expected 'message' or 'error' after 'Show'", line)
 
 
 def parse(tokens: list[Token]) -> list[object]:

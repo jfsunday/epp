@@ -235,7 +235,21 @@ Add route GET slash api to handle api.
 Wait for connections.
 ```
 
-Routes use `slash` for `/` — `slash api slash users` becomes `/api/users`. Responding with a dictionary auto-serializes to JSON. Custom status codes: `Respond with error and status 404.`
+Routes use `slash` for `/` — `slash api slash users` becomes `/api/users`. Use `param name` for path parameters — `slash users slash param id` matches `/users/42`. Responding with a dictionary auto-serializes to JSON. Custom status codes: `Respond with error and status 404.`
+
+**Path & Query Parameters:**
+```
+Let id be the path parameter id of request.
+Let q be the query parameter q of request.
+Let body be the body of request.
+```
+
+**Content-Type, CORS & Static Files:**
+```
+Set content type to text slash html.
+Enable CORS.
+Serve static files from the folder public.
+```
 
 ### Database (SQLite)
 
@@ -263,6 +277,62 @@ Let result be the dot product of X and Y.
 ```
 
 Works on lists of numbers. No external dependencies needed.
+
+### File I/O
+
+```
+Read the file data and store it in content.
+Write the value of result to the file output.
+```
+
+### String Operations
+
+```
+Let lower be the lowercase of word.
+Let upper be the uppercase of word.
+Let parts be the split of text by delimiter.
+Let sub be the substring of text from 1 to 5.
+Let pos be the position of needle in haystack.
+Let result be the value of text with old replaced by new.
+Let full be the value of first joined with last.
+```
+
+`joined with` concatenates without spaces. `the position of` returns 1-based index (0 if not found). `the substring of` uses 1-based inclusive indexing.
+
+### Timestamps
+
+```
+Let now be the current timestamp.
+Let today be the current date.
+Let time now be the current time.
+```
+
+### Type Conversion
+
+```
+Let num be the number of text.
+Let txt be the text of score.
+```
+
+### Random Item
+
+```
+Let picked be a random item from my list.
+```
+
+### GUI Extensions
+
+```
+Add dropdown lessons with options Lektion 1, Lektion 2, Lektion 3.
+Let selected be the dropdown lessons.
+Add table scores with columns Name, Points.
+Add row to scores with values Alice and 100.
+Clear table scores.
+Wait 2 seconds.
+Clear text box username.
+Show message Success.
+Show error Something went wrong.
+```
 
 ### Games
 
@@ -308,6 +378,18 @@ Launches a 2D side-scrolling platformer with:
 **Database** — Integrated SQLite database. Adds `Open a database`, `Create a table`, `Insert into`, `Select from`, `Update`, `Delete from`, and `Close the database`. No imports needed.
 
 **Math operations** — `the mean of`, `the sum of`, `the min of`, `the max of`, and `the dot product of` work on lists of numbers without external dependencies.
+
+**File I/O** — `Read the file` and `Write to the file` for basic text file operations.
+
+**String operations** — `the lowercase of`, `the uppercase of`, `the split of`, `the substring of`, `the position of`, `joined with`, and `with X replaced by Y` for text manipulation.
+
+**Timestamps** — `the current timestamp`, `the current date`, `the current time` for date/time access.
+
+**Type conversion** — `the number of` and `the text of` for converting between types.
+
+**Webserver extensions** — Path parameters (`param name`), query parameters, request body access, `Set content type`, `Enable CORS`, `Serve static files` for building full web applications.
+
+**GUI extensions** — Dropdowns, tables, `Wait N seconds`, `Clear text box`, `Show message`, `Show error` for richer desktop applications.
 
 ## Requirements
 

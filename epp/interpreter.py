@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 import random as _random
+import time as _time
+from datetime import datetime as _datetime
 from . import ast_nodes as ast
 from .environment import Environment
 from .errors import EppRuntimeError
@@ -25,6 +27,7 @@ class Interpreter:
         self._webserver = None  # lazy-init
         self._web_response = None
         self._web_status = 200
+        self._web_content_type = None
         self._database = None  # lazy-init
 
     def run(self, statements: list[object]) -> None:
@@ -76,6 +79,11 @@ class Interpreter:
     def _eval_BinaryOp(self, node: ast.BinaryOp, env: Environment) -> object:
         left = self._eval(node.left, env)
         right = self._eval(node.right, env)
+
+        if node.op == "joined_with":
+            left_str = format_value(left) if not isinstance(left, str) else left
+            right_str = format_value(right) if not isinstance(right, str) else right
+            return left_str + right_str
 
         if node.op == "plus":
             # Number + Number = Number; anything with str = concatenation
@@ -454,7 +462,7 @@ class Interpreter:
         self._get_webserver(node.line).start(int(port))
 
     def _exec_AddRouteStmt(self, node: ast.AddRouteStmt, env: Environment) -> None:
-        self._get_webserver(node.line).add_route(node.method, node.path, node.handler_name)
+        self._get_webserver(node.line).add_route(node.method, node.path, node.handler_name, node.params)
 
     def _exec_RespondWithStmt(self, node: ast.RespondWithStmt, env: Environment) -> None:
         self._web_response = self._eval(node.value, env)
@@ -462,6 +470,16 @@ class Interpreter:
             status = self._eval(node.status_code, env)
             self._check_number(status, "status code", node.line)
             self._web_status = int(status)
+
+    def _exec_SetContentTypeStmt(self, node: ast.SetContentTypeStmt, env: Environment) -> None:
+        self._web_content_type = node.content_type
+
+    def _exec_EnableCORSStmt(self, node: ast.EnableCORSStmt, env: Environment) -> None:
+        self._get_webserver(node.line).enable_cors()
+
+    def _exec_ServeStaticStmt(self, node: ast.ServeStaticStmt, env: Environment) -> None:
+        folder = format_value(self._eval(node.folder, env))
+        self._get_webserver(node.line).set_static_folder(folder)
 
     def _exec_WaitForConnectionsStmt(self, node: ast.WaitForConnectionsStmt, env: Environment) -> None:
         ws = self._get_webserver(node.line)
@@ -566,6 +584,168 @@ class Interpreter:
         if isinstance(value, (int, float)):
             return float(value)
         raise EppRuntimeError(f"expected a number but got {type(value).__name__}", line)
+
+    # ── File I/O Executors ─────────────────────────────────────────
+
+    def _exec_ReadFileStmt(self, node: ast.ReadFileStmt, env: Environment) -> None:
+        file_path = format_value(self._eval(node.file_path, env))
+        try:
+            with open(file_path, "r") as f:
+                content = f.read()
+        except FileNotFoundError:
+            raise EppRuntimeError(f"file '{file_path}' not found", node.line)
+        except OSError as e:
+            raise EppRuntimeError(f"cannot read file '{file_path}': {e}", node.line)
+        if env.has(node.store_in):
+            env.set(node.store_in, content, node.line)
+        else:
+            env.define(node.store_in, content)
+
+    def _exec_WriteFileStmt(self, node: ast.WriteFileStmt, env: Environment) -> None:
+        value = format_value(self._eval(node.value, env))
+        file_path = format_value(self._eval(node.file_path, env))
+        try:
+            with open(file_path, "w") as f:
+                f.write(value)
+        except OSError as e:
+            raise EppRuntimeError(f"cannot write file '{file_path}': {e}", node.line)
+
+    # ── String Operation Evaluators ──────────────────────────────
+
+    def _eval_LowercaseOfExpr(self, node: ast.LowercaseOfExpr, env: Environment) -> str:
+        value = self._eval(node.value, env)
+        return format_value(value).lower()
+
+    def _eval_UppercaseOfExpr(self, node: ast.UppercaseOfExpr, env: Environment) -> str:
+        value = self._eval(node.value, env)
+        return format_value(value).upper()
+
+    def _eval_SplitByExpr(self, node: ast.SplitByExpr, env: Environment) -> list:
+        value = format_value(self._eval(node.value, env))
+        delim = format_value(self._eval(node.delimiter, env))
+        return value.split(delim)
+
+    def _eval_SubstringOfExpr(self, node: ast.SubstringOfExpr, env: Environment) -> str:
+        value = format_value(self._eval(node.value, env))
+        start = self._eval(node.start, env)
+        end = self._eval(node.end, env)
+        self._check_number(start, "substring start", node.line)
+        self._check_number(end, "substring end", node.line)
+        # 1-based indexing, inclusive end
+        s = int(start)
+        e = int(end)
+        return value[s - 1:e]
+
+    def _eval_PositionOfExpr(self, node: ast.PositionOfExpr, env: Environment) -> float:
+        needle = format_value(self._eval(node.needle, env))
+        haystack = format_value(self._eval(node.haystack, env))
+        idx = haystack.find(needle)
+        return float(idx + 1) if idx >= 0 else 0.0  # 1-based, 0 = not found
+
+    def _eval_ReplaceExpr(self, node: ast.ReplaceExpr, env: Environment) -> str:
+        text = format_value(self._eval(node.text, env))
+        old = format_value(self._eval(node.old, env))
+        new = format_value(self._eval(node.new, env))
+        return text.replace(old, new)
+
+    # ── Timestamp Evaluators ─────────────────────────────────────
+
+    def _eval_CurrentTimestampExpr(self, node: ast.CurrentTimestampExpr, env: Environment) -> float:
+        return float(int(_time.time()))
+
+    def _eval_CurrentDateExpr(self, node: ast.CurrentDateExpr, env: Environment) -> str:
+        return _datetime.now().strftime("%Y-%m-%d")
+
+    def _eval_CurrentTimeExpr(self, node: ast.CurrentTimeExpr, env: Environment) -> str:
+        return _datetime.now().strftime("%H:%M:%S")
+
+    # ── Random Item Evaluator ────────────────────────────────────
+
+    def _eval_RandomItemExpr(self, node: ast.RandomItemExpr, env: Environment) -> object:
+        lst = env.get(node.list_name, node.line)
+        if not isinstance(lst, list):
+            raise EppRuntimeError(f"'{node.list_name}' is not a list", node.line)
+        if not lst:
+            raise EppRuntimeError(f"cannot pick from empty list '{node.list_name}'", node.line)
+        return _random.choice(lst)
+
+    # ── Type Conversion Evaluators ───────────────────────────────
+
+    def _eval_NumberOfExpr(self, node: ast.NumberOfExpr, env: Environment) -> float:
+        value = self._eval(node.value, env)
+        if isinstance(value, (int, float)):
+            return float(value)
+        try:
+            text = format_value(value)
+            if '.' in text:
+                return float(text)
+            return float(int(text))
+        except (ValueError, TypeError):
+            return 0.0
+
+    def _eval_TextOfExpr(self, node: ast.TextOfExpr, env: Environment) -> str:
+        value = self._eval(node.value, env)
+        return format_value(value)
+
+    # ── Request Access Evaluators ────────────────────────────────
+
+    def _eval_BodyOfExpr(self, node: ast.BodyOfExpr, env: Environment) -> object:
+        request = env.get(node.var_name, node.line)
+        if not isinstance(request, dict):
+            raise EppRuntimeError(f"'{node.var_name}' is not a request dictionary", node.line)
+        body = request.get("body", "")
+        data = request.get("data")
+        return data if data is not None else body
+
+    def _eval_PathParamExpr(self, node: ast.PathParamExpr, env: Environment) -> object:
+        request = env.get(node.var_name, node.line)
+        if not isinstance(request, dict):
+            raise EppRuntimeError(f"'{node.var_name}' is not a request dictionary", node.line)
+        params = request.get("__path_params", {})
+        if node.param_name not in params:
+            raise EppRuntimeError(f"path parameter '{node.param_name}' not found", node.line)
+        return params[node.param_name]
+
+    def _eval_QueryParamExpr(self, node: ast.QueryParamExpr, env: Environment) -> object:
+        request = env.get(node.var_name, node.line)
+        if not isinstance(request, dict):
+            raise EppRuntimeError(f"'{node.var_name}' is not a request dictionary", node.line)
+        params = request.get("__query_params", {})
+        return params.get(node.param_name, "")
+
+    # ── GUI Extension Executors ──────────────────────────────────
+
+    def _exec_AddDropdownStmt(self, node: ast.AddDropdownStmt, env: Environment) -> None:
+        self._get_visuals(node.line).add_dropdown(node.name, node.options)
+
+    def _eval_DropdownValueExpr(self, node: ast.DropdownValueExpr, env: Environment) -> str:
+        return env.get(f"__dropdown_{node.name}", node.line)
+
+    def _exec_AddTableStmt(self, node: ast.AddTableStmt, env: Environment) -> None:
+        self._get_visuals(node.line).add_table(node.name, node.columns)
+
+    def _exec_AddRowStmt(self, node: ast.AddRowStmt, env: Environment) -> None:
+        values = [format_value(self._eval(v, env)) for v in node.values]
+        self._get_visuals(node.line).add_row(node.table_name, values)
+
+    def _exec_ClearTableStmt(self, node: ast.ClearTableStmt, env: Environment) -> None:
+        self._get_visuals(node.line).clear_table(node.name)
+
+    def _exec_WaitSecondsStmt(self, node: ast.WaitSecondsStmt, env: Environment) -> None:
+        seconds = self._eval(node.seconds, env)
+        self._check_number(seconds, "wait seconds", node.line)
+        _time.sleep(float(seconds))
+
+    def _exec_ClearTextBoxStmt(self, node: ast.ClearTextBoxStmt, env: Environment) -> None:
+        self._get_visuals(node.line).clear_text_box(node.name)
+
+    def _exec_ShowMessageStmt(self, node: ast.ShowMessageStmt, env: Environment) -> None:
+        text = format_value(self._eval(node.text, env))
+        self._get_visuals(node.line).show_message(text)
+
+    def _exec_ShowErrorStmt(self, node: ast.ShowErrorStmt, env: Environment) -> None:
+        text = format_value(self._eval(node.text, env))
+        self._get_visuals(node.line).show_error(text)
 
     # ── Function Calling ─────────────────────────────────────────────
 
