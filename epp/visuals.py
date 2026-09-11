@@ -39,6 +39,8 @@ class Visuals:
         self._accent = _DEFAULT_ACCENT
         self._base_width = 600  # reference width for scaling
         self._widgets: list = []  # track widgets for responsive updates
+        self._flow_frame = None  # compact button flow frame
+        self._flow_count = 0  # buttons in current flow row
 
     def _resolve_font(self):
         """Pick the first available font family."""
@@ -159,16 +161,32 @@ class Visuals:
         btn_fg = self._btn_fg
         hover_bg = _DEFAULT_BTN_HOVER
 
-        btn = tk.Button(
-            self._frame, text=text, command=_on_click,
-            fg=btn_fg, bg=btn_bg,
-            activeforeground=btn_fg, activebackground=hover_bg,
-            font=self._font(),
-            relief="flat", cursor="hand2",
-            padx=16, pady=6,
-            borderwidth=0, highlightthickness=0,
-        )
-        btn.pack(pady=4, fill="x", padx=30)
+        # Short text buttons (1-2 chars) use compact flow layout
+        compact = len(text) <= 2
+        if compact:
+            parent = self._get_flow_frame()
+            btn = tk.Button(
+                parent, text=text, command=_on_click,
+                fg=btn_fg, bg=btn_bg,
+                activeforeground=btn_fg, activebackground=hover_bg,
+                font=self._font(),
+                relief="flat", cursor="hand2",
+                width=3, height=1,
+                borderwidth=0, highlightthickness=0,
+            )
+            btn.pack(side="left", padx=2, pady=2)
+        else:
+            self._flow_frame = None  # break flow on normal button
+            btn = tk.Button(
+                self._frame, text=text, command=_on_click,
+                fg=btn_fg, bg=btn_bg,
+                activeforeground=btn_fg, activebackground=hover_bg,
+                font=self._font(),
+                relief="flat", cursor="hand2",
+                padx=16, pady=6,
+                borderwidth=0, highlightthickness=0,
+            )
+            btn.pack(pady=4, fill="x", padx=30)
         self._widgets.append((btn, "button"))
 
         def _on_enter(e):
@@ -177,6 +195,17 @@ class Visuals:
             btn.configure(bg=btn_bg)
         btn.bind("<Enter>", _on_enter)
         btn.bind("<Leave>", _on_leave)
+
+    def _get_flow_frame(self):
+        """Get or create a wrapping frame for compact button flow layout."""
+        import tkinter as tk
+        if self._flow_frame and self._flow_frame.winfo_exists() and self._flow_count < 9:
+            self._flow_count += 1
+            return self._flow_frame
+        self._flow_frame = tk.Frame(self._frame, bg=self._bg_color)
+        self._flow_frame.pack(pady=2, padx=10, anchor="center")
+        self._flow_count = 1
+        return self._flow_frame
 
     def add_text_box(self, name: str) -> None:
         self._ensure_tk()
@@ -212,6 +241,8 @@ class Visuals:
             widget.destroy()
         self._turtle = None
         self._canvas = None
+        self._flow_frame = None
+        self._flow_count = 0
         self._widgets.clear()
 
     def set_title(self, title: str) -> None:
