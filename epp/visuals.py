@@ -70,9 +70,41 @@ class Visuals:
         self._root = tk.Tk()
         self._root.title("E++")
         self._root.configure(bg=self._bg_color)
-        self._frame = tk.Frame(self._root, bg=self._bg_color)
-        self._frame.pack(fill="both", expand=True, padx=20, pady=15)
+        # Scrollable container: canvas + scrollbar wrapping the frame
+        self._scroll_canvas = tk.Canvas(self._root, bg=self._bg_color,
+                                        highlightthickness=0)
+        self._scrollbar = tk.Scrollbar(self._root, orient="vertical",
+                                        command=self._scroll_canvas.yview)
+        self._scroll_canvas.configure(yscrollcommand=self._scrollbar.set)
+        self._scrollbar.pack(side="right", fill="y")
+        self._scroll_canvas.pack(side="left", fill="both", expand=True)
+        self._frame = tk.Frame(self._scroll_canvas, bg=self._bg_color)
+        self._frame_window = self._scroll_canvas.create_window(
+            (0, 0), window=self._frame, anchor="nw")
+        self._frame.bind("<Configure>", self._on_frame_configure)
+        self._scroll_canvas.bind("<Configure>", self._on_canvas_configure)
+        # Mouse wheel scrolling
+        self._root.bind("<MouseWheel>", self._on_mousewheel)
+        self._root.bind("<Button-4>", self._on_mousewheel)
+        self._root.bind("<Button-5>", self._on_mousewheel)
         self._root.bind("<Configure>", self._on_resize)
+
+    def _on_frame_configure(self, event):
+        """Update scroll region when frame content changes."""
+        self._scroll_canvas.configure(scrollregion=self._scroll_canvas.bbox("all"))
+
+    def _on_canvas_configure(self, event):
+        """Stretch frame to canvas width."""
+        self._scroll_canvas.itemconfig(self._frame_window, width=event.width)
+
+    def _on_mousewheel(self, event):
+        """Handle mouse wheel scrolling."""
+        if event.num == 4:
+            self._scroll_canvas.yview_scroll(-1, "units")
+        elif event.num == 5:
+            self._scroll_canvas.yview_scroll(1, "units")
+        elif event.delta:
+            self._scroll_canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
 
     def _ensure_turtle(self):
         if self._turtle is not None:
