@@ -65,7 +65,7 @@ Define build vocab,
         Let ci be 1.
         While the value of ci is less than or equal to tlen,
             Let ch be the substring of training text from the value of ci to the value of ci.
-            Add ch to raw tokens.
+            Add the value of ch to raw tokens.
             Add 1 to ci.
         End while.
     End if.
@@ -76,7 +76,7 @@ Define build vocab,
             Let ri be 1.
             While the value of ri is less than or equal to the length of raw tokens,
                 Let tok be item ri of raw tokens.
-                Add tok to spaced tokens.
+                Add the value of tok to spaced tokens.
                 Let rlen be the length of raw tokens.
                 If the value of ri is less than rlen,
                     Add space to spaced tokens.
@@ -112,7 +112,7 @@ Define build vocab,
         If the value of cnt is greater than or equal to min pair cnt,
             If the value of vocab sz is less than vocab limit,
                 Add 1 to vocab sz.
-                Add tok to nv words.
+                Add the value of tok to nv words.
                 Set the entry the value of tok in nv map to the value of vocab sz.
             End if.
         End if.
@@ -127,7 +127,7 @@ Define build vocab,
         Let tok be item ri of raw tokens.
         If the value of nv map has the entry the value of tok,
             Let tid be the entry the value of tok in nv map.
-            Add tid to new tids.
+            Add the value of tid to new tids.
         End if.
         Add 1 to ri.
     End while.
@@ -143,7 +143,7 @@ Define init model,
     Let wi be 1.
     While the value of wi is less than or equal to total e,
         Let w be a random decimal between negative 0 point 1 and 0 point 1.
-        Add w to ne.
+        Add the value of w to ne.
         Add 1 to wi.
     End while.
     Set embed wts to the value of ne.
@@ -153,7 +153,7 @@ Define init model,
     Let wi be 1.
     While the value of wi is less than or equal to total h,
         Let w be a random decimal between negative 0 point 1 and 0 point 1.
-        Add w to nhw.
+        Add the value of w to nhw.
         Add 1 to wi.
     End while.
     Set hidden wts to the value of nhw.
@@ -171,7 +171,7 @@ Define init model,
     Let wi be 1.
     While the value of wi is less than or equal to total o,
         Let w be a random decimal between negative 0 point 1 and 0 point 1.
-        Add w to now.
+        Add the value of w to now.
         Add 1 to wi.
     End while.
     Set out wts to the value of now.
@@ -261,7 +261,7 @@ Define do forward,
         While the value of ei is less than or equal to embed dim,
             Let wpos be the value of emb off plus ei.
             Let val be item wpos of embed wts.
-            Add val to niv.
+            Add the value of val to niv.
             Add 1 to ei.
         End while.
         Add 1 to ci.
@@ -285,11 +285,11 @@ Define do forward,
         End while.
         Let hb be item hi of hidden bias.
         Set acc to the value of acc plus hb.
-        Add acc to npa.
+        Add the value of acc to npa.
         If the value of acc is less than 0,
             Set acc to 0.
         End if.
-        Add acc to nha.
+        Add the value of acc to nha.
         Add 1 to hi.
     End while.
     Set hidden act to the value of nha.
@@ -311,7 +311,7 @@ Define do forward,
         End while.
         Let ob be item oi of out bias.
         Set acc to the value of acc plus ob.
-        Add acc to nlogits.
+        Add the value of acc to nlogits.
         Add 1 to oi.
     End while.
     Set logits to the value of nlogits.
@@ -323,8 +323,8 @@ Define do forward,
     While the value of ki is less than or equal to vocab sz,
         Let logit be item ki of nlogits.
         Let shifted be the value of logit minus max logit.
-        Let ex be the exponential of shifted.
-        Add ex to nprobs.
+        Let ex be the exponential of the value of shifted.
+        Add the value of ex to nprobs.
         Set exp total to the value of exp total plus ex.
         Add 1 to ki.
     End while.
@@ -350,7 +350,7 @@ Define do backward that takes tgt idx and lr,
         Otherwise,
             Let grad be the value of p.
         End if.
-        Add grad to d out.
+        Add the value of grad to d out.
         Add 1 to oi.
     End while.
     Note, Update output weights and bias.
@@ -475,7 +475,7 @@ Define compute coherence,
             While the value of ci is less than or equal to ctx,
                 Let off be the value of ti minus ctx plus ci minus 1.
                 Let tid be item off of token ids.
-                Add tid to nct.
+                Add the value of tid to nct.
                 Add 1 to ci.
             End while.
             Set ctx tokens to the value of nct.
@@ -597,7 +597,7 @@ Define handle train,
                 While the value of ci is less than or equal to ctx,
                     Let off be the value of pos minus ctx plus ci minus 1.
                     Let tid be item off of token ids.
-                    Add tid to nct.
+                    Add the value of tid to nct.
                     Add 1 to ci.
                 End while.
                 Set ctx tokens to the value of nct.
@@ -621,7 +621,7 @@ Define handle train,
             End while.
             Set epoch loss to the value of total loss divided by batch sz.
             Set current step to the value of si.
-            Add epoch loss to loss history.
+            Add the value of epoch loss to loss history.
             Note, Build loss log string showing last entries.
             Let lhlen be the length of loss history.
             Set loss log to empty.

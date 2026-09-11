@@ -193,7 +193,7 @@ Define do forward,
         While the value of ei is less than or equal to embed dim,
             Let wpos be the value of emb off plus ei.
             Let val be item wpos of embed wts.
-            Add val to niv.
+            Add the value of val to niv.
             Add 1 to ei.
         End while.
         Add 1 to ci.
@@ -219,7 +219,7 @@ Define do forward,
         If the value of acc is less than 0,
             Set acc to 0.
         End if.
-        Add acc to nha.
+        Add the value of acc to nha.
         Add 1 to hi.
     End while.
     Set hidden act to the value of nha.
@@ -240,7 +240,7 @@ Define do forward,
         End while.
         Let ob be item oi of out bias.
         Set acc to the value of acc plus ob.
-        Add acc to nlogits.
+        Add the value of acc to nlogits.
         Add 1 to oi.
     End while.
     Set logits to the value of nlogits.
@@ -252,8 +252,8 @@ Define do forward,
     While the value of ki is less than or equal to vocab sz,
         Let logit be item ki of nlogits.
         Let shifted be the value of logit minus max logit.
-        Let ex be the exponential of shifted.
-        Add ex to nprobs.
+        Let ex be the exponential of the value of shifted.
+        Add the value of ex to nprobs.
         Set exp total to the value of exp total plus ex.
         Add 1 to ki.
     End while.
@@ -298,7 +298,7 @@ Let seed idx be the entry the value of seed lower in vocab map.
 Create a list called history.
 Let fi be 1.
 While the value of fi is less than or equal to ctx,
-    Add seed idx to history.
+    Add the value of seed idx to history.
     Add 1 to fi.
 End while.
 Create a list called result words.
@@ -312,7 +312,7 @@ While the value of wi is less than or equal to max words,
     While the value of ci is less than or equal to ctx,
         Let off be the value of hlen minus ctx plus ci.
         Let tid be item off of history.
-        Add tid to nct.
+        Add the value of tid to nct.
         Add 1 to ci.
     End while.
     Set ctx tokens to the value of nct.
@@ -320,7 +320,7 @@ While the value of wi is less than or equal to max words,
     Call predict next and store the result in next idx.
     Let next word be item next idx of vocab words.
     Add the value of next word to result words.
-    Add next idx to history.
+    Add the value of next idx to history.
     Add 1 to wi.
 End while.
 Let output be item 1 of result words.
