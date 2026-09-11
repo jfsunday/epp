@@ -742,3 +742,11 @@ class ShowMessageStmt:
 class ShowErrorStmt:
     text: Any
     line: int
+
+
+# ── Background Execution ─────────────────────────────────────────
+
+@dataclass
+class RunInBackgroundStmt:
+    name: str
+    line: int

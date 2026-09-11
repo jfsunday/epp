@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Word Predictor MLP</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#1e1e2e;--surface:#313244;--surface2:#45475a;--text:#cdd6f4;--subtext:#a6adc8;--accent:#89b4fa;--green:#a6e3a1;--red:#f38ba8;--yellow:#f9e2af;--font:'Segoe UI',system-ui,sans-serif}
+body{background:var(--bg);color:var(--text);font-family:var(--font);min-height:100vh}
+.container{max-width:1100px;margin:0 auto;padding:20px}
+h1{font-size:1.6rem;font-weight:600;margin-bottom:20px;color:var(--accent)}
+h2{font-size:1.1rem;font-weight:600;margin-bottom:12px;color:var(--subtext)}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px}
+@media(max-width:700px){.grid{grid-template-columns:1fr}}
+.card{background:var(--surface);border-radius:12px;padding:16px}
+.card-full{grid-column:1/-1}
+label{display:block;font-size:.8rem;color:var(--subtext);margin-bottom:4px}
+input,textarea,select{width:100%;padding:8px 12px;background:var(--bg);border:1px solid var(--surface2);border-radius:8px;color:var(--text);font-family:var(--font);font-size:.9rem;outline:none;transition:border .2s}
+input:focus,textarea:focus,select:focus{border-color:var(--accent)}
+textarea{resize:vertical;min-height:80px;font-size:.85rem}
+.row{display:flex;gap:10px;flex-wrap:wrap}
+.row>div{flex:1;min-width:80px}
+.btn{padding:10px 20px;border:none;border-radius:8px;font-family:var(--font);font-size:.9rem;font-weight:600;cursor:pointer;transition:all .15s}
+.btn-primary{background:var(--accent);color:var(--bg)}
+.btn-primary:hover{filter:brightness(1.1)}
+.btn-primary:disabled{opacity:.4;cursor:not-allowed}
+.btn-danger{background:var(--red);color:var(--bg)}
+.btn-success{background:var(--green);color:var(--bg)}
+.btn-sm{padding:6px 14px;font-size:.8rem}
+.btns{display:flex;gap:8px;flex-wrap:wrap}
+.progress-bar{height:6px;background:var(--bg);border-radius:3px;overflow:hidden;margin-top:12px}
+.progress-fill{height:100%;background:var(--accent);border-radius:3px;transition:width .3s;width:0%}
+.stats{display:flex;gap:16px;flex-wrap:wrap;margin-top:10px}
+.stat{text-align:center}
+.stat-val{font-size:1.4rem;font-weight:700;color:var(--accent)}
+.stat-label{font-size:.7rem;color:var(--subtext)}
+.chart-wrap{position:relative;height:260px;margin-top:8px}
+.log{background:var(--bg);border-radius:8px;padding:10px;font-family:'JetBrains Mono',monospace;font-size:.75rem;color:var(--subtext);max-height:150px;overflow-y:auto;margin-top:8px;white-space:pre-wrap}
+.gen-output{background:var(--bg);border-radius:8px;padding:12px;margin-top:10px;font-size:1rem;min-height:40px;color:var(--text);line-height:1.6}
+.badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:.7rem;font-weight:600}
+.badge-idle{background:var(--surface2);color:var(--subtext)}
+.badge-training{background:var(--yellow);color:var(--bg);animation:pulse 1s infinite}
+.badge-done{background:var(--green);color:var(--bg)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.6}}
+.vocab-list{display:flex;flex-wrap:wrap;gap:4px;margin-top:8px;max-height:100px;overflow-y:auto}
+.vocab-tag{background:var(--bg);padding:2px 8px;border-radius:4px;font-size:.75rem;color:var(--subtext)}
+.sep{border:none;border-top:1px solid var(--surface2);margin:12px 0}
+</style>
+</head>
+<body>
+<div class="container">
+<h1>Word Predictor MLP</h1>
+<div class="grid">
+  <div class="card card-full">
+    <h2>Training Data</h2>
+    <div class="row">
+      <div style="flex:3"><label>Text</label><textarea id="traintext" placeholder="the cat sat on the mat..."></textarea></div>
+      <div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end">
+        <input type="file" id="fileinput" accept=".txt" style="display:none">
+        <button class="btn btn-sm btn-primary" onclick="document.getElementById('fileinput').click()">Load File</button>
+        <div style="margin-top:6px;font-size:.75rem;color:var(--subtext)" id="wordcount">0 words</div>
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <h2>Tokenization</h2>
+    <div class="row">
+      <div><label>Vocab limit</label><input type="number" id="vocablimit" value="200"></div>
+      <div><label>Mode</label><select id="wholetokens"><option value="1" selected>Words</option><option value="0">Chars</option></select></div>
+      <div><label>Min freq</label><input type="number" id="minpaircount" value="1"></div>
+    </div>
+    <hr class="sep">
+    <h2>Architecture</h2>
+    <div class="row">
+      <div><label>Context</label><input type="number" id="context" value="3"></div>
+      <div><label>Embed</label><input type="number" id="embeddim" value="16"></div>
+      <div><label>Hidden</label><input type="number" id="hiddendim" value="32"></div>
+    </div>
+  </div>
+  <div class="card">
+    <h2>Training</h2>
+    <div class="row">
+      <div><label>Steps</label><input type="number" id="steps" value="5000"></div>
+      <div><label>Batch</label><input type="number" id="batchsize" value="8"></div>
+      <div><label>LR</label><input type="number" id="learningrate" value="0.05" step="0.001"></div>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <div><label>Stop mode</label><select id="stopmode"><option value="steps">Steps</option><option value="loss">Target Loss</option></select></div>
+      <div><label>Target loss</label><input type="number" id="targetloss" value="0.5" step="0.01"></div>
+    </div>
+    <hr class="sep">
+    <h2>Semantic Init</h2>
+    <div class="row">
+      <div><label>Enable</label><select id="semanticinit"><option value="0" selected>Off</option><option value="1">On</option></select></div>
+      <div><label>Anchor</label><input type="text" id="semanticanchor" value="the"></div>
+      <div><label>Scale</label><input type="number" id="semanticscale" value="0.1" step="0.01"></div>
+    </div>
+  </div>
+  <div class="card card-full">
+    <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+      <div class="btns">
+        <button class="btn btn-primary" id="btn-train" onclick="startTraining()">Start Training</button>
+        <button class="btn btn-danger" id="btn-stop" onclick="stopTraining()" disabled>Stop</button>
+        <button class="btn btn-success" id="btn-save" onclick="saveModel()" disabled>Save to DB</button>
+      </div>
+      <span class="badge badge-idle" id="status-badge">Idle</span>
+      <div class="stats" id="train-stats" style="display:none">
+        <div class="stat"><div class="stat-val" id="s-step">0</div><div class="stat-label">Step</div></div>
+        <div class="stat"><div class="stat-val" id="s-loss">-</div><div class="stat-label">Loss</div></div>
+        <div class="stat"><div class="stat-val" id="s-coh">-</div><div class="stat-label">Coherence</div></div>
+        <div class="stat"><div class="stat-val" id="s-vocab">-</div><div class="stat-label">Vocab</div></div>
+        <div class="stat"><div class="stat-val" id="s-params">-</div><div class="stat-label">Params</div></div>
+        <div class="stat"><div class="stat-val" id="s-lr">-</div><div class="stat-label">LR now</div></div>
+      </div>
+    </div>
+    <div class="progress-bar"><div class="progress-fill" id="progress"></div></div>
+  </div>
+  <div class="card">
+    <h2>Loss</h2>
+    <div class="chart-wrap"><canvas id="lossChart"></canvas></div>
+  </div>
+  <div class="card">
+    <h2>Coherence</h2>
+    <div class="chart-wrap"><canvas id="cohChart"></canvas></div>
+  </div>
+  <div class="card">
+    <h2>Generate Text</h2>
+    <div class="row">
+      <div style="flex:2"><label>Seed word</label><input type="text" id="gen-seed" value="the"></div>
+      <div><label>Words</label><input type="number" id="gen-count" value="10"></div>
+      <div style="display:flex;align-items:flex-end"><button class="btn btn-primary btn-sm" onclick="doGenerate()">Generate</button></div>
+    </div>
+    <div class="gen-output" id="gen-output">Train a model first...</div>
+  </div>
+  <div class="card">
+    <h2>Log</h2>
+    <div class="log" id="log">Ready.</div>
+    <div class="vocab-list" id="vocab-list"></div>
+  </div>
+</div>
+</div>
+<script>
+let pollId=null,training=false;
+const mkChart=(id,color)=>new Chart(document.getElementById(id),{type:'line',data:{labels:[],datasets:[{data:[],borderColor:color,borderWidth:1.5,pointRadius:0,tension:.3,fill:false}]},options:{responsive:true,maintainAspectRatio:false,animation:false,scales:{x:{display:false},y:{ticks:{color:'#a6adc8',font:{size:10}},grid:{color:'#31324422'}}},plugins:{legend:{display:false}}}});
+const lossChart=mkChart('lossChart','#f38ba8');
+const cohChart=mkChart('cohChart','#a6e3a1');
+
+document.getElementById('fileinput').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;f.text().then(t=>{document.getElementById('traintext').value=t;wc();log('Loaded '+f.name);})});
+document.getElementById('traintext').addEventListener('input',wc);
+function wc(){const t=document.getElementById('traintext').value.trim();document.getElementById('wordcount').textContent=(t?t.split(/\s+/).length:0)+' words';}
+function log(m){const el=document.getElementById('log');el.textContent+='\n'+m;el.scrollTop=el.scrollHeight;}
+
+async function startTraining(){
+  const cfg={};
+  ['vocablimit','wholetokens','minpaircount','context','embeddim','hiddendim','steps','batchsize','learningrate','stopmode','targetloss','semanticinit','semanticanchor','semanticscale'].forEach(id=>{const el=document.getElementById(id);cfg[id]=el.tagName==='SELECT'?el.value:el.type==='number'?parseFloat(el.value):el.value;});
+  cfg.text=document.getElementById('traintext').value;
+  if(!cfg.text.trim()){log('ERROR: No training text!');return;}
+  document.getElementById('btn-train').disabled=true;
+  document.getElementById('btn-stop').disabled=false;
+  document.getElementById('btn-save').disabled=true;
+  document.getElementById('status-badge').className='badge badge-training';
+  document.getElementById('status-badge').textContent='Training...';
+  document.getElementById('train-stats').style.display='flex';
+  training=true;log('Starting training...');
+  try{
+    const res=await fetch('/api/train',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(cfg)});
+    const d=await res.json();
+    if(d.error){log('ERROR: '+d.error);stopUI();return;}
+    log('Vocab: '+d.vocabsz+', tokens: '+d.totaltokens+', params: '+d.params);
+    document.getElementById('s-vocab').textContent=d.vocabsz;
+    document.getElementById('s-params').textContent=d.params;
+  }catch(e){log('ERROR: '+e.message);stopUI();return;}
+  pollId=setInterval(pollProgress,400);
+}
+
+async function pollProgress(){
+  try{
+    const res=await fetch('/api/progress');const d=await res.json();if(!d||!d.step)return;
+    document.getElementById('s-step').textContent=d.step+'/'+d.total;
+    document.getElementById('s-loss').textContent=d.loss!==null?d.loss.toFixed(4):'-';
+    document.getElementById('s-coh').textContent=d.coh!==null?d.coh.toFixed(4):'-';
+    document.getElementById('s-lr').textContent=d.lr!==null?d.lr.toFixed(5):'-';
+    document.getElementById('progress').style.width=(d.step/d.total*100)+'%';
+    if(d.losses){
+      let L=d.losses,C=d.cohs||[],labels;
+      if(L.length>500){const s=Math.ceil(L.length/500);const nL=[],nC=[],nLb=[];for(let i=0;i<L.length;i+=s){nLb.push(i+1);nL.push(L[i]);if(C.length)nC.push(C[i]);}L=nL;C=nC;labels=nLb;}else{labels=L.map((_,i)=>i+1);}
+      lossChart.data.labels=labels;lossChart.data.datasets[0].data=L;lossChart.update();
+      if(C.length){cohChart.data.labels=labels;cohChart.data.datasets[0].data=C;cohChart.update();}
+    }
+    if(d.done){clearInterval(pollId);pollId=null;training=false;
+      document.getElementById('btn-train').disabled=false;document.getElementById('btn-stop').disabled=true;document.getElementById('btn-save').disabled=false;
+      document.getElementById('status-badge').className='badge badge-done';document.getElementById('status-badge').textContent='Done';
+      document.getElementById('progress').style.width='100%';
+      log('Done! Loss: '+(d.loss?d.loss.toFixed(4):'?')+' Coh: '+(d.coh?d.coh.toFixed(4):'?'));
+      if(d.vocab){document.getElementById('vocab-list').innerHTML=d.vocab.map(w=>'<span class="vocab-tag">'+w+'</span>').join('');}
+    }
+  }catch(e){}
+}
+
+async function stopTraining(){await fetch('/api/stop',{method:'POST'});log('Stopping...');}
+function stopUI(){if(pollId){clearInterval(pollId);pollId=null;}training=false;document.getElementById('btn-train').disabled=false;document.getElementById('btn-stop').disabled=true;document.getElementById('status-badge').className='badge badge-idle';document.getElementById('status-badge').textContent='Idle';}
+async function saveModel(){log('Saving...');const r=await fetch('/api/save',{method:'POST'});const d=await r.json();log(d.msg||d.error||'Saved.');}
+async function doGenerate(){const s=document.getElementById('gen-seed').value,c=document.getElementById('gen-count').value;const r=await fetch('/api/generate?seed='+encodeURIComponent(s)+'&count='+c);const d=await r.json();document.getElementById('gen-output').textContent=d.text||d.error||'?';}
+wc();
+</script>
+</body>
+</html>

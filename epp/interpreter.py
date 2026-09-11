@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 import random as _random
+import threading as _threading
 import time as _time
 from datetime import datetime as _datetime
 from . import ast_nodes as ast
@@ -257,6 +258,25 @@ class Interpreter:
 
     def _exec_NoteStmt(self, node: ast.NoteStmt, env: Environment) -> None:
         pass  # Comments are ignored
+
+    def _exec_RunInBackgroundStmt(self, node: ast.RunInBackgroundStmt, env: Environment) -> None:
+        """Run a zero-arg function in a background daemon thread."""
+        name = node.name
+        if name not in self.functions:
+            raise EppRuntimeError(f"the function '{name}' has not been defined", node.line)
+
+        def _run():
+            local_env = Environment(parent=self.globals)
+            try:
+                for stmt in self.functions[name].body:
+                    self._exec(stmt, local_env)
+            except _ReturnSignal:
+                pass
+            except Exception as e:
+                self._say_fn(f"Background error in '{name}': {e}")
+
+        thread = _threading.Thread(target=_run, daemon=True)
+        thread.start()
 
     # ── Data Structure Executors ──────────────────────────────────────
 

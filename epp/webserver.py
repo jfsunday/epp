@@ -7,9 +7,14 @@ import mimetypes
 import os
 import threading
 from http.server import HTTPServer, BaseHTTPRequestHandler
+from socketserver import ThreadingMixIn
 from urllib.parse import urlparse, parse_qs
 
 from .builtins import format_value
+
+
+class _ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
+    daemon_threads = True
 
 
 def _to_json(value: object) -> object:
@@ -95,7 +100,7 @@ class EppWebserver:
             def log_message(self, format, *args):
                 pass  # suppress default logging
 
-        self.server = HTTPServer(("", port), Handler)
+        self.server = _ThreadedHTTPServer(("", port), Handler)
         thread = threading.Thread(target=self.server.serve_forever, daemon=True)
         thread.start()
         self.interpreter._say_fn(f"Webserver running on port {port}")
@@ -111,6 +116,8 @@ class EppWebserver:
             return False
         # Remove leading slash
         rel_path = path.lstrip("/")
+        if not rel_path:
+            rel_path = "index.html"
         file_path = os.path.join(self._static_folder, rel_path)
         if not os.path.isfile(file_path):
             return False
@@ -198,12 +205,17 @@ class EppWebserver:
             try:
                 self.interpreter.call_function_with_values(fn_name, [request])
             except Exception as e:
+                error_msg = str(e)
+                response = None
+                status = 500
+                custom_content_type = None
+                # Send error response outside lock below
                 handler.send_response(500)
                 if self._cors:
                     self._add_cors_headers(handler)
                 handler.send_header("Content-Type", "text/plain")
                 handler.end_headers()
-                handler.wfile.write(str(e).encode())
+                handler.wfile.write(error_msg.encode())
                 return
 
             response = self.interpreter._web_response
