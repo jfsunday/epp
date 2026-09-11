@@ -882,18 +882,10 @@ Define handle info that takes request,
     Respond with the value of resp.
 End define.
 
-Note, Serve the main page.
-Define handle home that takes request,
-    Read the file public slash index dot html and store it in content.
-    Set content type to text slash html.
-    Respond with the value of content.
-End define.
-
 Note, Start Server.
 Start a webserver on port 8090.
 Enable CORS.
 Serve static files from the folder public.
-Add route GET slash to handle home.
 Add route GET slash api slash info to handle info.
 Add route POST slash api slash upload to handle upload.
 Add route POST slash api slash train to handle train.
