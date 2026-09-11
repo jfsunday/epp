@@ -36,3 +36,8 @@ def ask_auto_detect(prompt: str, *, input_fn=None) -> object:
 def random_between(low: float, high: float) -> float:
     """Return a random integer between low and high (inclusive)."""
     return float(_random.randint(int(low), int(high)))
+
+
+def random_decimal_between(low: float, high: float) -> float:
+    """Return a random float between low and high."""
+    return _random.uniform(low, high)

@@ -159,6 +159,13 @@ class Parser:
                 self.expect_word("from")
                 name = self.read_identifier(stop_words)
                 return ast.RandomItemExpr(name, line)
+            if self.at_word("decimal"):
+                self.advance()  # decimal
+                self.expect_word("between")
+                low = self.parse_value({"and"})
+                self.expect_word("and")
+                high = self.parse_value(stop_words)
+                return ast.RandomDecimalBetween(low, high, line)
             self.expect_word("number")
             self.expect_word("between")
             low = self.parse_value({"and"})
@@ -251,6 +258,20 @@ class Parser:
                 self.expect_word("and")
                 right = self.read_identifier(stop_words)
                 return ast.DotProductExpr(left, right, line)
+
+            # ── Math function expressions ──
+            elif peek_val == "exponential":
+                self.advance()  # the
+                self.advance()  # exponential
+                self.expect_word("of")
+                val = self.parse_value(stop_words)
+                return self._maybe_chain_ops(ast.ExponentialOfExpr(val, line), stop_words)
+            elif peek_val == "logarithm":
+                self.advance()  # the
+                self.advance()  # logarithm
+                self.expect_word("of")
+                val = self.parse_value(stop_words)
+                return self._maybe_chain_ops(ast.LogarithmOfExpr(val, line), stop_words)
 
             # ── String operation expressions ──
             elif peek_val == "lowercase":
@@ -381,6 +402,7 @@ class Parser:
         elif self.at_word("the"):
             peek_val = self.peek(1).value.lower()
             if peek_val in ("length", "keys", "entry", "value", "mean", "sum", "min", "max", "dot",
+                            "exponential", "logarithm",
                             "lowercase", "uppercase", "split", "substring", "position",
                             "number", "text", "current", "body", "path", "query", "dropdown"):
                 return self.parse_value(stop_words)
@@ -560,6 +582,7 @@ class Parser:
         if self.at_word("the"):
             peek_val = self.peek(1).value.lower()
             if peek_val in ("length", "keys", "entry", "mean", "sum", "min", "max", "dot",
+                            "exponential", "logarithm",
                             "lowercase", "uppercase", "split", "substring", "position",
                             "number", "text", "current", "body", "path", "query", "dropdown"):
                 return self.parse_value(stop_words)
@@ -810,6 +833,17 @@ class Parser:
                 size = self.parse_value()
                 self.skip_period()
                 return ast.SetPenSizeStmt(size, line)
+
+        # Check for "Set item X of LIST to VALUE."
+        if self.at_word("item"):
+            self.advance()  # item
+            index = self._parse_operand({"of"})
+            self.expect_word("of")
+            list_name = self.read_identifier({"to"})
+            self.expect_word("to")
+            value = self.parse_value()
+            self.skip_period()
+            return ast.SetItemStmt(list_name, index, value, line)
 
         # Check for "Set the entry KEY in DICT to VALUE."
         if self.at_word("the") and self.peek(1).value.lower() == "entry":

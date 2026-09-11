@@ -7,7 +7,7 @@ from datetime import datetime as _datetime
 from . import ast_nodes as ast
 from .environment import Environment
 from .errors import EppRuntimeError
-from .builtins import format_value, ask_auto_detect, random_between
+from .builtins import format_value, ask_auto_detect, random_between, random_decimal_between
 
 
 class _ReturnSignal(Exception):
@@ -75,6 +75,13 @@ class Interpreter:
         self._check_number(low, "random lower bound", node.line)
         self._check_number(high, "random upper bound", node.line)
         return random_between(low, high)
+
+    def _eval_RandomDecimalBetween(self, node: ast.RandomDecimalBetween, env: Environment) -> float:
+        low = self._eval(node.low, env)
+        high = self._eval(node.high, env)
+        self._check_number(low, "random lower bound", node.line)
+        self._check_number(high, "random upper bound", node.line)
+        return random_decimal_between(low, high)
 
     def _eval_BinaryOp(self, node: ast.BinaryOp, env: Environment) -> object:
         left = self._eval(node.left, env)
@@ -288,6 +295,19 @@ class Interpreter:
         key = format_value(self._eval(node.key, env))
         value = self._eval(node.value, env)
         d[key] = value
+
+    def _exec_SetItemStmt(self, node: ast.SetItemStmt, env: Environment) -> None:
+        lst = env.get(node.list_name, node.line)
+        if not isinstance(lst, list):
+            raise EppRuntimeError(f"'{node.list_name}' is not a list", node.line)
+        index = self._eval(node.index, env)
+        self._check_number(index, "index", node.line)
+        idx = int(index)
+        if idx < 1 or idx > len(lst):
+            raise EppRuntimeError(
+                f"index {idx} out of bounds (list has {len(lst)} items)", node.line
+            )
+        lst[idx - 1] = self._eval(node.value, env)
 
     def _exec_ForEachStmt(self, node: ast.ForEachStmt, env: Environment) -> None:
         collection = env.get(node.iterable_name, node.line)
@@ -597,6 +617,20 @@ class Interpreter:
             self._as_number(a, node.line) * self._as_number(b, node.line)
             for a, b in zip(left, right)
         )
+
+    def _eval_ExponentialOfExpr(self, node: ast.ExponentialOfExpr, env: Environment) -> float:
+        val = self._eval(node.value, env)
+        self._check_number(val, "exponential argument", node.line)
+        import math
+        return math.exp(val)
+
+    def _eval_LogarithmOfExpr(self, node: ast.LogarithmOfExpr, env: Environment) -> float:
+        val = self._eval(node.value, env)
+        self._check_number(val, "logarithm argument", node.line)
+        if val <= 0:
+            raise EppRuntimeError("logarithm requires a positive number", node.line)
+        import math
+        return math.log(val)
 
     @staticmethod
     def _as_number(value: object, line: int) -> float:

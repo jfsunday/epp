@@ -39,6 +39,13 @@ class RandomBetween:
 
 
 @dataclass
+class RandomDecimalBetween:
+    low: Any
+    high: Any
+    line: int
+
+
+@dataclass
 class BinaryOp:
     op: str  # plus, minus, times, divided_by, remainder
     left: Any
@@ -342,6 +349,14 @@ class SetEntryStmt:
 
 
 @dataclass
+class SetItemStmt:
+    list_name: str
+    index: Any
+    value: Any
+    line: int
+
+
+@dataclass
 class ForEachStmt:
     var_name: str
     iterable_name: str
@@ -507,6 +522,18 @@ class MaxOfExpr:
 class DotProductExpr:
     left_name: str
     right_name: str
+    line: int
+
+
+@dataclass
+class ExponentialOfExpr:
+    value: Any
+    line: int
+
+
+@dataclass
+class LogarithmOfExpr:
+    value: Any
     line: int
 
 

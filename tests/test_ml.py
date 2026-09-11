@@ -1,4 +1,7 @@
-"""Tests for E++ ML operations (mean, sum, min, max, dot product)."""
+"""Tests for E++ ML operations (mean, sum, min, max, dot product, exp, log, random decimal)."""
+
+import pytest
+from epp.errors import EppRuntimeError
 
 
 class TestMLOperations:
@@ -69,3 +72,48 @@ If the value of avg is greater than 85,
 End if.
 """)
         assert out == ["above average"]
+
+    def test_exponential_of_zero(self, run):
+        _, out = run("Let x be the exponential of 0.\nSay the value of x.")
+        assert out == ["1"]
+
+    def test_exponential_of_one(self, run):
+        _, out = run("Let x be the exponential of 1.\nSay the value of x.")
+        assert float(out[0]) == pytest.approx(2.718281828, rel=1e-6)
+
+    def test_logarithm_of_one(self, run):
+        _, out = run("Let x be the logarithm of 1.\nSay the value of x.")
+        assert out == ["0"]
+
+    def test_logarithm_of_e(self, run):
+        _, out = run("""Let e be the exponential of 1.
+Let x be the logarithm of the value of e.
+Say the value of x.""")
+        assert float(out[0]) == pytest.approx(1.0, rel=1e-6)
+
+    def test_logarithm_negative_error(self, run):
+        with pytest.raises(EppRuntimeError):
+            run("Let x be the logarithm of 0.")
+
+    def test_exponential_in_expression(self, run):
+        _, out = run("""Let x be the exponential of 2.
+Let y be the logarithm of the value of x.
+Say the value of y.""")
+        assert float(out[0]) == pytest.approx(2.0, rel=1e-6)
+
+    def test_random_decimal(self, run):
+        _, out = run("Let r be a random decimal between 0 and 1.\nSay the value of r.")
+        val = float(out[0])
+        assert 0.0 <= val <= 1.0
+
+    def test_random_decimal_range(self, run):
+        _, out = run("""Let r be a random decimal between 5 and 10.
+Say the value of r.""")
+        val = float(out[0])
+        assert 5.0 <= val <= 10.0
+
+    def test_random_decimal_negative(self, run):
+        _, out = run("""Let r be a random decimal between negative 1 and 1.
+Say the value of r.""")
+        val = float(out[0])
+        assert -1.0 <= val <= 1.0

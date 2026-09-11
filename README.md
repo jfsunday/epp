@@ -43,7 +43,7 @@ Anywhere a value is expected, it is resolved in this order:
 
 1. Numbers: `42`, `3 point 14`, `negative 5`
 2. Booleans: `yes`, `no`
-3. Random: `a random number between 1 and 100`
+3. Random: `a random number between 1 and 100`, `a random decimal between 0 and 1`
 4. Expressions: `the value of x plus y minus 1`
 5. Everything else: taken as literal text
 
@@ -133,6 +133,7 @@ Add apple to fruits.
 Add banana to fruits.
 Say item 1 of fruits.
 Say the length of fruits.
+Set item 1 of fruits to cherry.
 Remove item 2 from fruits.
 Remove apple from fruits.
 ```
@@ -274,9 +275,11 @@ Let total be the sum of scores.
 Let smallest be the min of scores.
 Let largest be the max of scores.
 Let result be the dot product of X and Y.
+Let e be the exponential of 1.
+Let x be the logarithm of 10.
 ```
 
-Works on lists of numbers. No external dependencies needed.
+`mean`, `sum`, `min`, `max`, and `dot product` work on lists of numbers. `exponential` computes e^x, `logarithm` computes ln(x). No external dependencies needed.
 
 ### File I/O
 
@@ -314,11 +317,15 @@ Let num be the number of text.
 Let txt be the text of score.
 ```
 
-### Random Item
+### Random
 
 ```
+Let n be a random number between 1 and 100.
+Let r be a random decimal between 0 and 1.
 Let picked be a random item from my list.
 ```
+
+`random number` returns an integer, `random decimal` returns a float.
 
 ### GUI Extensions
 
@@ -371,13 +378,13 @@ Launches a 2D side-scrolling platformer with:
 
 **Responsive sizing** — Widget fonts and layout adapt to window size changes. Not specified in the original spec but follows the spirit of usable visual output.
 
-**Data structures** — Lists and dictionaries extend the original spec with collection types. Adds `Create`, `Remove`, `For each`, `item of`, `the length of`, `the keys of`, `the entry in`, `contains`, and `has the entry`. `Add` is overloaded to append to lists at runtime.
+**Data structures** — Lists and dictionaries extend the original spec with collection types. Adds `Create`, `Remove`, `For each`, `item of`, `Set item of`, `the length of`, `the keys of`, `the entry in`, `contains`, and `has the entry`. `Add` is overloaded to append to lists at runtime.
 
 **Webserver** — Built-in HTTP server using Python's `http.server`. Adds `Start a webserver`, `Add route`, `Respond with`, and `Wait for connections`. Dict responses auto-serialize to JSON.
 
 **Database** — Integrated SQLite database. Adds `Open a database`, `Create a table`, `Insert into`, `Select from`, `Update`, `Delete from`, and `Close the database`. No imports needed.
 
-**Math operations** — `the mean of`, `the sum of`, `the min of`, `the max of`, and `the dot product of` work on lists of numbers without external dependencies.
+**Math operations** — `the mean of`, `the sum of`, `the min of`, `the max of`, `the dot product of`, `the exponential of`, and `the logarithm of` for numeric computation without external dependencies.
 
 **File I/O** — `Read the file` and `Write to the file` for basic text file operations.
 
@@ -390,6 +397,8 @@ Launches a 2D side-scrolling platformer with:
 **Webserver extensions** — Path parameters (`param name`), query parameters, request body access, `Set content type`, `Enable CORS`, `Serve static files` for building full web applications.
 
 **GUI extensions** — Dropdowns, tables, `Wait N seconds`, `Clear text box`, `Show message`, `Show error` for richer desktop applications.
+
+**Random decimals** — `a random decimal between X and Y` for floating-point random numbers (the original `a random number between` returns integers only).
 
 ## Requirements
 

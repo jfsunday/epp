@@ -246,6 +246,46 @@ Say the value of total.
 """)
         assert out == ["60"]
 
+    def test_set_item(self, run):
+        _, out = run("""
+Create a list called nums.
+Add 10 to nums.
+Add 20 to nums.
+Add 30 to nums.
+Set item 2 of nums to 99.
+Say item 1 of nums.
+Say item 2 of nums.
+Say item 3 of nums.
+""")
+        assert out == ["10", "99", "30"]
+
+    def test_set_item_with_expression(self, run):
+        _, out = run("""
+Create a list called w.
+Add 0 to w.
+Add 0 to w.
+Let idx be 2.
+Set item idx of w to 42.
+Say item 1 of w.
+Say item 2 of w.
+""")
+        assert out == ["0", "42"]
+
+    def test_set_item_out_of_bounds(self, run):
+        with pytest.raises(EppRuntimeError):
+            run("""
+Create a list called w.
+Add 1 to w.
+Set item 5 of w to 99.
+""")
+
+    def test_set_item_not_a_list(self, run):
+        with pytest.raises(EppRuntimeError):
+            run("""
+Let x be 5.
+Set item 1 of x to 99.
+""")
+
     def test_dict_with_numeric_values(self, run):
         interp, out = run("""
 Create a dictionary called prices.
