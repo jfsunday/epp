@@ -244,7 +244,8 @@ Define build guessed text,
         Let guessed text be item 1 of guessed.
         Let gi be 2.
         While the value of gi is less than or equal to the value of guess count,
-            Let guessed text be the value of guessed text plus item the value of gi of guessed.
+            Let next letter be item the value of gi of guessed.
+            Let guessed text be the value of guessed text plus the value of next letter.
             Add 1 to gi.
         End while.
     End if.
