@@ -20,6 +20,13 @@ Create a list called pre act.
 Create a list called logits.
 Create a list called probs.
 
+Note, Config key names.
+Let vocabsize be vocabsize.
+Let context be context.
+Let embeddim be embeddim.
+Let hiddendim be hiddendim.
+Let inputdim be inputdim.
+
 Note, Load model from database.
 Define load model,
     Open a database called word predictor.

@@ -22,6 +22,13 @@ Let generated text be empty.
 Let got result be no.
 Let model loaded be no.
 
+Note, Config key names.
+Let vocabsize be vocabsize.
+Let context be context.
+Let embeddim be embeddim.
+Let hiddendim be hiddendim.
+Let inputdim be inputdim.
+
 Note, Load model from database.
 Define load model,
     Open a database called word predictor.
