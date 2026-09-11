@@ -80,17 +80,20 @@ class Visuals:
         self._ensure_tk()
         import tkinter as tk
         import turtle
+        # Mark as initializing to prevent _on_resize from resizing the canvas
+        self._turtle_init = True
         self._canvas = tk.Canvas(
-            self._frame, width=400, height=400,
+            self._frame, width=400, height=300,
             bg="#181825", highlightthickness=1, highlightbackground="#45475a",
         )
-        self._canvas.pack(pady=10)
+        self._canvas.pack(pady=5)
         screen = turtle.TurtleScreen(self._canvas)
         screen.bgcolor("#181825")
         self._turtle = turtle.RawTurtle(screen)
         self._turtle.speed(3)
         self._turtle.hideturtle()
         self._turtle.pencolor(_DEFAULT_ACCENT)
+        self._turtle_init = False
 
     def _on_resize(self, event):
         """Scale fonts and wraplength when window is resized."""
@@ -110,7 +113,7 @@ class Visuals:
                     widget.pack_configure(padx=pad_x)
             except tk.TclError:
                 pass
-        if self._canvas and not self._turtle:
+        if self._canvas and not self._turtle and not getattr(self, '_turtle_init', False):
             try:
                 cw = max(200, w - 80)
                 ch = max(200, int(cw * 0.75))
