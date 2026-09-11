@@ -1,0 +1,199 @@
+Note, Word Predictor GUI Version.
+
+Note, Global state.
+Let vocab sz be 0.
+Create a list called idx to word.
+Create a dictionary called word to idx.
+Create a list called weights.
+Let generated text be none.
+Let model loaded be no.
+
+Note, Load model from database.
+Define load model,
+    Open a database called word predictor.
+    Select from config and store in cfg rows.
+    Let ci be 1.
+    While the value of ci is less than or equal to the length of cfg rows,
+        Let row be item ci of cfg rows.
+        Let k be the entry key in row.
+        Let v be the entry val in row.
+        If the value of k is equal to vocabsize,
+            Set vocab sz to the number of v.
+        End if.
+        Add 1 to ci.
+    End while.
+    Select from vocab and store in vocab rows.
+    Create a list called new idx to word.
+    Create a dictionary called new word to idx.
+    Let si be 1.
+    While the value of si is less than or equal to vocab sz,
+        Add placeholder to new idx to word.
+        Add 1 to si.
+    End while.
+    Let vi be 1.
+    While the value of vi is less than or equal to the length of vocab rows,
+        Let row be item vi of vocab rows.
+        Let w be the entry word in row.
+        Let raw idx be the entry idx in row.
+        Let idx be the number of raw idx.
+        Set item idx of new idx to word to the value of w.
+        Set the entry the value of w in new word to idx to the value of idx.
+        Add 1 to vi.
+    End while.
+    Set idx to word to the value of new idx to word.
+    Set word to idx to the value of new word to idx.
+    Select from weights and store in w rows.
+    Create a list called new weights.
+    Let total w be the value of vocab sz times vocab sz.
+    Let si be 1.
+    While the value of si is less than or equal to total w,
+        Add 0 to new weights.
+        Add 1 to si.
+    End while.
+    Let wi be 1.
+    While the value of wi is less than or equal to the length of w rows,
+        Let row be item wi of w rows.
+        Let raw pos be the entry pos in row.
+        Let pos be the number of raw pos.
+        Let raw val be the entry val in row.
+        Let val be the number of raw val.
+        Set item pos of new weights to the value of val.
+        Add 1 to wi.
+    End while.
+    Set weights to the value of new weights.
+    Close the database.
+    Set model loaded to yes.
+    Call show ui.
+End define.
+
+Note, Predict next word given current word index.
+Define predict next that takes from idx,
+    Create a list called logits.
+    Let row offset be the value of from idx minus 1 times vocab sz.
+    Let ki be 1.
+    While the value of ki is less than or equal to vocab sz,
+        Let widx be the value of row offset plus ki.
+        Let logit be item widx of weights.
+        Add logit to logits.
+        Add 1 to ki.
+    End while.
+    Let max logit be the max of logits.
+    Create a list called probs.
+    Let exp total be 0.
+    Let ki be 1.
+    While the value of ki is less than or equal to vocab sz,
+        Let logit be item ki of logits.
+        Let shifted be the value of logit minus max logit.
+        Let ex be the exponential of shifted.
+        Add ex to probs.
+        Set exp total to the value of exp total plus ex.
+        Add 1 to ki.
+    End while.
+    Let ki be 1.
+    While the value of ki is less than or equal to vocab sz,
+        Let p be item ki of probs.
+        Set item ki of probs to the value of p divided by exp total.
+        Add 1 to ki.
+    End while.
+    Let best idx be 1.
+    Let best prob be item 1 of probs.
+    Let ki be 2.
+    While the value of ki is less than or equal to vocab sz,
+        Let p be item ki of probs.
+        If the value of p is greater than best prob,
+            Set best idx to the value of ki.
+            Set best prob to the value of p.
+        End if.
+        Add 1 to ki.
+    End while.
+    Return the value of best idx.
+End define.
+
+Note, Handle single prediction.
+Define handle predict,
+    If the value of model loaded is equal to no,
+        Say Load the model first.
+        Return 0.
+    End if.
+    Let seed be the text box inputword.
+    Let seed lower be the lowercase of seed.
+    If not the value of word to idx has the entry the value of seed lower,
+        Set generated text to Unknown word.
+        Call show ui.
+        Return 0.
+    End if.
+    Let current idx be the entry the value of seed lower in word to idx.
+    Call predict next with the value of current idx and store the result in next idx.
+    Let next word be item next idx of idx to word.
+    Set generated text to the value of seed lower joined with space joined with next word.
+    Call show ui.
+End define.
+
+Note, Handle auto generate.
+Define handle auto,
+    If the value of model loaded is equal to no,
+        Say Load the model first.
+        Return 0.
+    End if.
+    Let seed be the text box inputword.
+    Let seed lower be the lowercase of seed.
+    If not the value of word to idx has the entry the value of seed lower,
+        Set generated text to Unknown word.
+        Call show ui.
+        Return 0.
+    End if.
+    Let raw count be the text box wordcount.
+    Let max words be the number of raw count.
+    Let current idx be the entry the value of seed lower in word to idx.
+    Create a list called result words.
+    Add the value of seed lower to result words.
+    Let wi be 1.
+    While the value of wi is less than or equal to max words,
+        Call predict next with the value of current idx and store the result in next idx.
+        Let next word be item next idx of idx to word.
+        Add the value of next word to result words.
+        Set current idx to the value of next idx.
+        Add 1 to wi.
+    End while.
+    Let output be item 1 of result words.
+    Let oi be 2.
+    While the value of oi is less than or equal to the length of result words,
+        Let w be item oi of result words.
+        Set output to the value of output joined with space joined with w.
+        Add 1 to oi.
+    End while.
+    Set generated text to the value of output.
+    Call show ui.
+End define.
+
+Note, Build the UI.
+Define show ui,
+    Clear window.
+    Add label Word Predictor.
+    If the value of model loaded is equal to no,
+        Add label Please load model first.
+        Add button with text Load Model that calls load model.
+    End if.
+    If the value of model loaded is equal to yes,
+        Add label Model ready.
+        Add label Enter a starting word.
+        Add text box inputword.
+        Add button with text Predict Next that calls handle predict.
+        Add label Word count for auto generate.
+        Add text box wordcount.
+        Add button with text Auto Generate that calls handle auto.
+    End if.
+    If the value of generated text is not equal to none,
+        Add label Generated text.
+        Add label the value of generated text.
+    End if.
+End define.
+
+Note, Launch window.
+Open window with title Word Predictor.
+Set window size to 500 by 500.
+Set background color to #1e1e2e.
+Set text color to #cdd6f4.
+Set font size to 13.
+Call show ui.
+Wait for close.

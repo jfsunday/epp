@@ -1,0 +1,220 @@
+Note, Word Predictor Training.
+
+Note, Global state.
+Let vocab size be 0.
+Let trained be no.
+Let epoch loss be 0.
+Let total epochs be 0.
+Create a list called words.
+Create a list called idx to word.
+Create a dictionary called word to idx.
+Create a list called weights.
+Let training text be none.
+
+Note, Build vocabulary from the words list.
+Define build vocab,
+    Set vocab size to 0.
+    Create a list called new idx to word.
+    Create a dictionary called new word to idx.
+    Let wi be 1.
+    While the value of wi is less than or equal to the length of words,
+        Let w be item wi of words.
+        If not the value of new word to idx has the entry the value of w,
+            Add 1 to vocab size.
+            Add w to new idx to word.
+            Set the entry the value of w in new word to idx to the value of vocab size.
+        End if.
+        Add 1 to wi.
+    End while.
+    Set idx to word to the value of new idx to word.
+    Set word to idx to the value of new word to idx.
+End define.
+
+Note, Initialize weights with small random values.
+Define init weights,
+    Create a list called new weights.
+    Let total be the value of vocab size times vocab size.
+    Let wi be 0.
+    While the value of wi is less than total,
+        Let w be a random decimal between negative 0 point 1 and 0 point 1.
+        Add w to new weights.
+        Add 1 to wi.
+    End while.
+    Set weights to the value of new weights.
+End define.
+
+Note, Train one epoch and return average loss.
+Define train one epoch that takes lr,
+    Let total loss be 0.
+    Let pair count be 0.
+    Let ti be 1.
+    Let num words be the length of words.
+    While the value of ti is less than num words,
+        Let current word be item ti of words.
+        Let next ti be the value of ti plus 1.
+        Let target word be item next ti of words.
+        Let from idx be the entry the value of current word in word to idx.
+        Let to idx be the entry the value of target word in word to idx.
+
+        Note, Forward pass, extract logits row.
+        Create a list called logits.
+        Let row offset be the value of from idx minus 1 times vocab size.
+        Let ki be 1.
+        While the value of ki is less than or equal to vocab size,
+            Let widx be the value of row offset plus ki.
+            Let logit be item widx of weights.
+            Add logit to logits.
+            Add 1 to ki.
+        End while.
+
+        Note, Softmax with numerical stability.
+        Let max logit be the max of logits.
+        Create a list called probs.
+        Let exp total be 0.
+        Let ki be 1.
+        While the value of ki is less than or equal to vocab size,
+            Let logit be item ki of logits.
+            Let shifted be the value of logit minus max logit.
+            Let ex be the exponential of shifted.
+            Add ex to probs.
+            Set exp total to the value of exp total plus ex.
+            Add 1 to ki.
+        End while.
+        Let ki be 1.
+        While the value of ki is less than or equal to vocab size,
+            Let p be item ki of probs.
+            Set item ki of probs to the value of p divided by exp total.
+            Add 1 to ki.
+        End while.
+
+        Note, Cross entropy loss.
+        Let target prob be item to idx of probs.
+        If the value of target prob is less than 0 point 0000001,
+            Set target prob to 0 point 0000001.
+        End if.
+        Let loss be the logarithm of the value of target prob.
+        Set loss to the value of loss times negative 1.
+        Set total loss to the value of total loss plus loss.
+        Add 1 to pair count.
+
+        Note, Backward pass, update weights for this row.
+        Let ki be 1.
+        While the value of ki is less than or equal to vocab size,
+            Let grad be item ki of probs.
+            If the value of ki is equal to to idx,
+                Set grad to the value of grad minus 1.
+            End if.
+            Let widx be the value of row offset plus ki.
+            Let old w be item widx of weights.
+            Let step be the value of grad times lr.
+            Set item widx of weights to the value of old w minus step.
+            Add 1 to ki.
+        End while.
+
+        Add 1 to ti.
+    End while.
+
+    If the value of pair count is greater than 0,
+        Set epoch loss to the value of total loss divided by pair count.
+    End if.
+    Return the value of epoch loss.
+End define.
+
+Note, Save model to database.
+Define handle save,
+    Open a database called word predictor.
+    Create a table called vocab with columns word and idx.
+    Let vi be 1.
+    While the value of vi is less than or equal to vocab size,
+        Let w be item vi of idx to word.
+        Insert into vocab the values the value of w and the value of vi.
+        Add 1 to vi.
+    End while.
+    Create a table called weights with columns pos and val.
+    Let total be the value of vocab size times vocab size.
+    Let wi be 1.
+    While the value of wi is less than or equal to total,
+        Let w be item wi of weights.
+        Insert into weights the values the value of wi and the value of w.
+        Add 1 to wi.
+    End while.
+    Create a table called config with columns key and val.
+    Insert into config the values vocabsize and the value of vocab size.
+    Insert into config the values epochs and the value of total epochs.
+    Close the database.
+    Set trained to yes.
+    Say Model saved to database.
+    Call show ui.
+End define.
+
+Note, Load training text from file.
+Define handle load file,
+    Let filepath be the text box filepath.
+    Read the file the value of filepath and store it in content.
+    Set training text to the value of content.
+    Say File loaded.
+    Call show ui.
+End define.
+
+Note, Start training.
+Define handle train,
+    Let raw epochs be the text box epochs.
+    Let raw lr be the text box lr.
+    Let num epochs be the number of raw epochs.
+    Let lr be the number of raw lr.
+    Let raw text be the text box traintext.
+    Let raw len be the length of raw text.
+    If the value of raw len is greater than 0,
+        Set training text to the value of raw text.
+    End if.
+    If the value of training text is equal to none,
+        Say Please enter training text or load a file.
+        Return 0.
+    End if.
+    Set words to the split of training text by space.
+    Call build vocab.
+    Call init weights.
+    Say Training with the value of vocab size joined with words.
+    Let epoch be 1.
+    While the value of epoch is less than or equal to num epochs,
+        Call train one epoch with the value of lr and store the result in loss.
+        Set total epochs to the value of epoch.
+        Clear window.
+        Add label Training in progress.
+        Add label Epoch the value of epoch of the value of num epochs.
+        Add label Loss the value of epoch loss.
+        Add label Vocab the value of vocab size joined with words.
+        Add button with text Save Model that calls handle save.
+        Add button with text Train Again that calls show ui.
+        Add 1 to epoch.
+    End while.
+    Say Training done.
+    Say the value of epoch loss.
+End define.
+
+Note, Main UI.
+Define show ui,
+    Clear window.
+    Add label Word Predictor Training.
+    Add label Enter text or load from file.
+    Add text box traintext.
+    Add label File path.
+    Add text box filepath.
+    Add button with text Load File that calls handle load file.
+    Add label Epochs and learning rate.
+    Add text box epochs.
+    Add text box lr.
+    Add button with text Start Training that calls handle train.
+    If the value of trained is equal to yes,
+        Add label Model saved.
+    End if.
+End define.
+
+Note, Launch window.
+Open window with title Word Predictor Training.
+Set window size to 500 by 600.
+Set background color to #1e1e2e.
+Set text color to #cdd6f4.
+Set font size to 13.
+Call show ui.
+Wait for close.
