@@ -18,7 +18,7 @@ STMT_KEYWORDS = {
     "open", "move", "turn", "pen", "draw", "wait", "clear", "shuffle",
     "start", "create", "remove", "for",
     "respond", "insert", "select", "update", "delete", "close",
-    "read", "write", "enable", "serve", "show",
+    "read", "write", "enable", "serve", "show", "run",
 }
 
 
@@ -549,7 +549,8 @@ class Parser:
     # Special word literals for characters that cannot appear in source
     _SPECIAL_WORDS = {"underscore": "_", "colon": ":", "space": " ", "dash": "-",
                       "exclamation": "!", "question": "?", "semicolon": ";",
-                      "at": "@", "ampersand": "&"}
+                      "at": "@", "ampersand": "&", "newline": "\n", "tab": "\t",
+                      "comma": ",", "period": "."}
 
     def _parse_operand(self, stop_words: set[str]) -> object:
         """Parse a single operand (number, bool, variable ref, or nested expression)."""
@@ -721,6 +722,8 @@ class Parser:
             return self._parse_serve(line)
         elif word == "show":
             return self._parse_show(line)
+        elif word == "run":
+            return self._parse_run(line)
         else:
             raise EppParseError(f"unknown statement '{tok.value}'", line)
 
@@ -1632,6 +1635,15 @@ class Parser:
             self.skip_period()
             return ast.ShowErrorStmt(text, line)
         raise EppParseError("expected 'message' or 'error' after 'Show'", line)
+
+    def _parse_run(self, line: int) -> ast.RunInBackgroundStmt:
+        """Run <function name> in background."""
+        self.advance()  # run
+        name = self.read_identifier({"in"}, allow_keywords=True)
+        self.expect_word("in")
+        self.expect_word("background")
+        self.skip_period()
+        return ast.RunInBackgroundStmt(name, line)
 
 
 def parse(tokens: list[Token]) -> list[object]:
