@@ -1,0 +1,907 @@
+Note, Neural Network Studio.
+Note, A general purpose MLP trainer with web interface.
+
+Note, Error message strings.
+Let msg nodata be nodata.
+Let msg nomodel be nomodel.
+Let msg parsefail be parsefail.
+Let msg saved be saved.
+Let msg loaded be loaded.
+Let msg nosave be nosave.
+Let regression str be regression.
+Let steps str be steps.
+Let loss str be loss.
+Let none str be none.
+
+Note, Global Configuration.
+Let num inputs be 0.
+Let num outputs be 0.
+Let hidden dim be 8.
+Let num steps be 1000.
+Let batch sz be 4.
+Let learn rate be 0 point 01.
+Let halt mode be steps.
+Let target loss val be 0 point 1.
+Let task class be 1.
+Let model ready be 0.
+Let training flag be 0.
+Let stop requested be 0.
+
+Note, Dataset.
+Create a list called data rows.
+Create a list called data labels.
+Create a list called col names.
+Let num samples be 0.
+Let num cols be 0.
+Let data loaded be 0.
+Create a list called label names.
+Let num classes be 0.
+
+Note, Model Weights.
+Create a list called wh.
+Create a list called bh.
+Create a list called wo.
+Create a list called bo.
+
+Note, Forward Cache.
+Create a list called zh cache.
+Create a list called ah cache.
+Create a list called zo cache.
+Create a list called ao cache.
+
+Note, Training State.
+Let current step be 0.
+Let epoch loss be 0.
+Create a list called loss history.
+Let train done be 0.
+
+Note, Parse CSV data.
+Define parse csv that takes raw text,
+    Let lines be the split of raw text by newline.
+    Let num lines be the length of lines.
+    If the value of num lines is less than 2,
+        Return 0.
+    End if.
+    Note, Parse header.
+    Let header be item 1 of lines.
+    Set col names to the split of header by comma.
+    Set num cols to the length of col names.
+    Note, Parse rows.
+    Create a list called new rows.
+    Create a list called new labels.
+    Create a dictionary called label map.
+    Create a list called new label names.
+    Let next label id be 1.
+    Let ri be 2.
+    While the value of ri is less than or equal to num lines,
+        Let line be item ri of lines.
+        Let line len be the length of line.
+        If the value of line len is greater than 0,
+            Let parts be the split of line by comma.
+            Let num parts be the length of parts.
+            If the value of num parts is equal to num cols,
+                Note, All columns except last are features.
+                Create a list called feat row.
+                Let fi be 1.
+                Let feat cols be the value of num cols minus 1.
+                While the value of fi is less than or equal to feat cols,
+                    Let raw val be item fi of parts.
+                    Let num val be the number of raw val.
+                    Add the value of num val to feat row.
+                    Add 1 to fi.
+                End while.
+                Add the value of feat row to new rows.
+                Note, Last column is label.
+                Let label val be item num cols of parts.
+                If the value of task class is equal to 1,
+                    Note, Map string labels to numeric ids.
+                    If not the value of label map has the entry the value of label val,
+                        Set the entry the value of label val in label map to the value of next label id.
+                        Add the value of label val to new label names.
+                        Add 1 to next label id.
+                    End if.
+                    Let label id be the entry the value of label val in label map.
+                    Add the value of label id to new labels.
+                Otherwise,
+                    Let num label be the number of label val.
+                    Add the value of num label to new labels.
+                End if.
+            End if.
+        End if.
+        Add 1 to ri.
+    End while.
+    Set data rows to the value of new rows.
+    Set data labels to the value of new labels.
+    Set num samples to the length of new rows.
+    Set num inputs to the value of feat cols.
+    If the value of task class is equal to 1,
+        Set label names to the value of new label names.
+        Set num classes to the length of new label names.
+        Set num outputs to the value of num classes.
+    Otherwise,
+        Set num outputs to 1.
+    End if.
+    Set data loaded to 1.
+    Return 1.
+End define.
+
+Note, Initialize Weights.
+Define init weights,
+    Note, Xavier init scale.
+    Let scaleh be 1 divided by num inputs.
+    Let sqrt scaleh be the exponential of the value of the logarithm of the value of scaleh times 0 point 5.
+    Let scaleo be 1 divided by hidden dim.
+    Let sqrt scaleo be the exponential of the value of the logarithm of the value of scaleo times 0 point 5.
+    Note, Wh hidden dim x num inputs.
+    Create a list called nwh.
+    Let total wh be the value of hidden dim times num inputs.
+    Let wi be 1.
+    While the value of wi is less than or equal to total wh,
+        Let w be a random decimal between negative 1 and 1.
+        Set w to the value of w times sqrt scaleh.
+        Add the value of w to nwh.
+        Add 1 to wi.
+    End while.
+    Set wh to the value of nwh.
+    Note, Bh hidden dim.
+    Create a list called nbh.
+    Let wi be 1.
+    While the value of wi is less than or equal to hidden dim,
+        Add 0 to nbh.
+        Add 1 to wi.
+    End while.
+    Set bh to the value of nbh.
+    Note, Wo num outputs x hidden dim.
+    Create a list called nwo.
+    Let total wo be the value of num outputs times hidden dim.
+    Let wi be 1.
+    While the value of wi is less than or equal to total wo,
+        Let w be a random decimal between negative 1 and 1.
+        Set w to the value of w times sqrt scaleo.
+        Add the value of w to nwo.
+        Add 1 to wi.
+    End while.
+    Set wo to the value of nwo.
+    Note, Bo num outputs.
+    Create a list called nbo.
+    Let wi be 1.
+    While the value of wi is less than or equal to num outputs,
+        Add 0 to nbo.
+        Add 1 to wi.
+    End while.
+    Set bo to the value of nbo.
+    Set model ready to 1.
+    Set train done to 0.
+    Create a list called empty hist.
+    Set loss history to the value of empty hist.
+    Set current step to 0.
+End define.
+
+Note, Forward Pass.
+Define do forward that takes input row,
+    Note, Hidden layer zh eq Wh dot input plus bh.
+    Create a list called nzh.
+    Create a list called nah.
+    Let hi be 1.
+    While the value of hi is less than or equal to hidden dim,
+        Let acc be 0.
+        Let ii be 1.
+        While the value of ii is less than or equal to num inputs,
+            Let himo be the value of hi minus 1.
+            Let wpos be the value of himo times num inputs plus ii.
+            Let wv be item wpos of wh.
+            Let iv be item ii of input row.
+            Set acc to the value of acc plus the value of wv times iv.
+            Add 1 to ii.
+        End while.
+        Let bias be item hi of bh.
+        Set acc to the value of acc plus bias.
+        Add the value of acc to nzh.
+        Note, ReLU activation.
+        If the value of acc is less than 0,
+            Set acc to 0.
+        End if.
+        Add the value of acc to nah.
+        Add 1 to hi.
+    End while.
+    Set zh cache to the value of nzh.
+    Set ah cache to the value of nah.
+    Note, Output layer zo eq Wo dot ah plus bo.
+    Create a list called nzo.
+    Let oi be 1.
+    While the value of oi is less than or equal to num outputs,
+        Let acc be 0.
+        Let hi be 1.
+        While the value of hi is less than or equal to hidden dim,
+            Let oimo be the value of oi minus 1.
+            Let wpos be the value of oimo times hidden dim plus hi.
+            Let wv be item wpos of wo.
+            Let av be item hi of nah.
+            Set acc to the value of acc plus the value of wv times av.
+            Add 1 to hi.
+        End while.
+        Let bias be item oi of bo.
+        Set acc to the value of acc plus bias.
+        Add the value of acc to nzo.
+        Add 1 to oi.
+    End while.
+    Set zo cache to the value of nzo.
+    Note, Apply activation.
+    If the value of task class is equal to 1,
+        Note, Softmax.
+        Let max logit be the max of nzo.
+        Create a list called nao.
+        Let exp sum be 0.
+        Let ki be 1.
+        While the value of ki is less than or equal to num outputs,
+            Let logit be item ki of nzo.
+            Let shifted be the value of logit minus max logit.
+            Let ex be the exponential of the value of shifted.
+            Add the value of ex to nao.
+            Set exp sum to the value of exp sum plus ex.
+            Add 1 to ki.
+        End while.
+        Let ki be 1.
+        While the value of ki is less than or equal to num outputs,
+            Let p be item ki of nao.
+            Let normed be the value of p divided by exp sum.
+            Set item ki of nao to the value of normed.
+            Add 1 to ki.
+        End while.
+        Set ao cache to the value of nao.
+    Otherwise,
+        Note, Linear output for regression.
+        Set ao cache to the value of nzo.
+    End if.
+End define.
+
+Note, Backward Pass.
+Define do backward that takes input row, target, and lr,
+    Note, Compute output gradient.
+    Create a list called d out.
+    If the value of task class is equal to 1,
+        Note, Cross entropy gradient softmax minus one hot.
+        Let oi be 1.
+        While the value of oi is less than or equal to num outputs,
+            Let p be item oi of ao cache.
+            If the value of oi is equal to target,
+                Let grad be the value of p minus 1.
+            Otherwise,
+                Let grad be the value of p.
+            End if.
+            Add the value of grad to d out.
+            Add 1 to oi.
+        End while.
+    Otherwise,
+        Note, MSE gradient 2 times pred minus target divided by n.
+        Let pred be item 1 of ao cache.
+        Let grad be the value of pred minus target times 2.
+        Add the value of grad to d out.
+    End if.
+    Note, Update Wo and B2.
+    Let oi be 1.
+    While the value of oi is less than or equal to num outputs,
+        Let dg be item oi of d out.
+        Let hi be 1.
+        While the value of hi is less than or equal to hidden dim,
+            Let oimo be the value of oi minus 1.
+            Let wpos be the value of oimo times hidden dim plus hi.
+            Let old w be item wpos of wo.
+            Let av be item hi of ah cache.
+            Let step be the value of dg times av times lr.
+            Let new w be the value of old w minus step.
+            Set item wpos of wo to the value of new w.
+            Add 1 to hi.
+        End while.
+        Let old b be item oi of bo.
+        Let b step be the value of dg times lr.
+        Let new b be the value of old b minus b step.
+        Set item oi of bo to the value of new b.
+        Add 1 to oi.
+    End while.
+    Note, Backprop to hidden layer.
+    Let hi be 1.
+    While the value of hi is less than or equal to hidden dim,
+        Let dh be 0.
+        Let oi be 1.
+        While the value of oi is less than or equal to num outputs,
+            Let dg be item oi of d out.
+            Let oimo be the value of oi minus 1.
+            Let wpos be the value of oimo times hidden dim plus hi.
+            Let wv be item wpos of wo.
+            Set dh to the value of dh plus the value of wv times dg.
+            Add 1 to oi.
+        End while.
+        Note, ReLU derivative.
+        Let z val be item hi of zh cache.
+        If the value of z val is less than or equal to 0,
+            Set dh to 0.
+        End if.
+        Note, Update Wh.
+        Let ii be 1.
+        While the value of ii is less than or equal to num inputs,
+            Let himo be the value of hi minus 1.
+            Let wpos be the value of himo times num inputs plus ii.
+            Let old w be item wpos of wh.
+            Let iv be item ii of input row.
+            Let step be the value of dh times iv times lr.
+            Let new w be the value of old w minus step.
+            Set item wpos of wh to the value of new w.
+            Add 1 to ii.
+        End while.
+        Note, Update Bh.
+        Let old b be item hi of bh.
+        Let b step be the value of dh times lr.
+        Let new b be the value of old b minus b step.
+        Set item hi of bh to the value of new b.
+        Add 1 to hi.
+    End while.
+End define.
+
+Note, Training Loop.
+Define run training,
+    Set training flag to 1.
+    Set stop requested to 0.
+    Set train done to 0.
+    Create a list called new hist.
+    Set loss history to the value of new hist.
+    Let si be 1.
+    Let done be 0.
+    While the value of done is equal to 0,
+        If the value of stop requested is equal to 1,
+            Set done to 1.
+        End if.
+        If the value of si is greater than num steps,
+            If the value of halt mode is equal to steps str,
+                Set done to 1.
+            End if.
+        End if.
+        If the value of done is equal to 0,
+            Let total loss be 0.
+            Let bi be 1.
+            While the value of bi is less than or equal to batch sz,
+                Note, Random sample.
+                Let idx be a random number between 1 and the value of num samples.
+                Let row be item idx of data rows.
+                Let target be item idx of data labels.
+                Call do forward with the value of row.
+                Note, Compute loss.
+                If the value of task class is equal to 1,
+                    Let target prob be item target of ao cache.
+                    If the value of target prob is less than 0 point 0000001,
+                        Set target prob to 0 point 0000001.
+                    End if.
+                    Let loss be the logarithm of the value of target prob.
+                    Set loss to the value of loss times negative 1.
+                Otherwise,
+                    Let pred be item 1 of ao cache.
+                    Let diff be the value of pred minus target.
+                    Let loss be the value of diff times diff.
+                End if.
+                Set total loss to the value of total loss plus loss.
+                Call do backward with the value of row, the value of target, and the value of learn rate.
+                Add 1 to bi.
+            End while.
+            Set epoch loss to the value of total loss divided by batch sz.
+            Set current step to the value of si.
+            Add the value of epoch loss to loss history.
+            Note, Check loss target.
+            If the value of halt mode is equal to loss str,
+                If the value of epoch loss is less than or equal to target loss val,
+                    Set done to 1.
+                End if.
+            End if.
+            Add 1 to si.
+        End if.
+    End while.
+    Set train done to 1.
+    Set training flag to 0.
+End define.
+
+Note, Compute accuracy on full dataset.
+Define compute accuracy,
+    If the value of task class is not equal to 1,
+        Return 0.
+    End if.
+    Let correct be 0.
+    Let si be 1.
+    While the value of si is less than or equal to num samples,
+        Let row be item si of data rows.
+        Let target be item si of data labels.
+        Call do forward with the value of row.
+        Note, Find argmax.
+        Let best idx be 1.
+        Let best val be item 1 of ao cache.
+        Let ki be 2.
+        While the value of ki is less than or equal to num outputs,
+            Let p be item ki of ao cache.
+            If the value of p is greater than best val,
+                Set best idx to the value of ki.
+                Set best val to the value of p.
+            End if.
+            Add 1 to ki.
+        End while.
+        If the value of best idx is equal to target,
+            Add 1 to correct.
+        End if.
+        Add 1 to si.
+    End while.
+    Let acc be the value of correct divided by num samples.
+    Return the value of acc.
+End define.
+
+Note, Save model to database.
+Define save model,
+    Open a database called neural network.
+    Create a table called config with columns key and val.
+    Create a table called weightsh with columns pos and val.
+    Create a table called biasesh with columns pos and val.
+    Create a table called weightso with columns pos and val.
+    Create a table called biaseso with columns pos and val.
+    Create a table called labels with columns idx and name.
+    Create a table called columns with columns idx and name.
+    Note, Clear old data.
+    Delete from config where val is not equal to negative 999.
+    Delete from weightsh where pos is not equal to negative 999.
+    Delete from biasesh where pos is not equal to negative 999.
+    Delete from weightso where pos is not equal to negative 999.
+    Delete from biaseso where pos is not equal to negative 999.
+    Delete from labels where idx is not equal to negative 999.
+    Delete from columns where idx is not equal to negative 999.
+    Note, Save config.
+    Insert into config the values numinputs and the value of num inputs.
+    Insert into config the values numoutputs and the value of num outputs.
+    Insert into config the values hiddendim and the value of hidden dim.
+    Insert into config the values isclassification and the value of task class.
+    Insert into config the values steps and the value of current step.
+    Insert into config the values learnrate and the value of learn rate.
+    Insert into config the values finalloss and the value of epoch loss.
+    Note, Save label names.
+    Let li be 1.
+    While the value of li is less than or equal to num classes,
+        Let lname be item li of label names.
+        Insert into labels the values the value of li and the value of lname.
+        Add 1 to li.
+    End while.
+    Note, Save column names.
+    Let ci be 1.
+    Let feat cols be the value of num cols minus 1.
+    While the value of ci is less than or equal to feat cols,
+        Let cname be item ci of col names.
+        Insert into columns the values the value of ci and the value of cname.
+        Add 1 to ci.
+    End while.
+    Note, Save Wh.
+    Let total wh be the value of hidden dim times num inputs.
+    Let wi be 1.
+    While the value of wi is less than or equal to total wh,
+        Let wv be item wi of wh.
+        Insert into weightsh the values the value of wi and the value of wv.
+        Add 1 to wi.
+    End while.
+    Note, Save Bh.
+    Let wi be 1.
+    While the value of wi is less than or equal to hidden dim,
+        Let bv be item wi of bh.
+        Insert into biasesh the values the value of wi and the value of bv.
+        Add 1 to wi.
+    End while.
+    Note, Save Wo.
+    Let total wo be the value of num outputs times hidden dim.
+    Let wi be 1.
+    While the value of wi is less than or equal to total wo,
+        Let wv be item wi of wo.
+        Insert into weightso the values the value of wi and the value of wv.
+        Add 1 to wi.
+    End while.
+    Note, Save Bo.
+    Let wi be 1.
+    While the value of wi is less than or equal to num outputs,
+        Let bv be item wi of bo.
+        Insert into biaseso the values the value of wi and the value of bv.
+        Add 1 to wi.
+    End while.
+    Close the database.
+    Return 1.
+End define.
+
+Note, Load model from database.
+Define load model,
+    Open a database called neural network.
+    Note, Load config.
+    Select from config and store in cfg rows.
+    Let numinputs be numinputs.
+    Let numoutputs be numoutputs.
+    Let hiddendim be hiddendim.
+    Let isclassification be isclassification.
+    Let ci be 1.
+    While the value of ci is less than or equal to the length of cfg rows,
+        Let row be item ci of cfg rows.
+        Let k be the entry key in row.
+        Let v be the entry val in row.
+        If the value of k is equal to numinputs,
+            Set num inputs to the number of v.
+        End if.
+        If the value of k is equal to numoutputs,
+            Set num outputs to the number of v.
+        End if.
+        If the value of k is equal to hiddendim,
+            Set hidden dim to the number of v.
+        End if.
+        If the value of k is equal to isclassification,
+            Set task class to the number of v.
+        End if.
+        Add 1 to ci.
+    End while.
+    Note, Load label names.
+    Select from labels and store in label rows.
+    Create a list called nl names.
+    Let li be 1.
+    While the value of li is less than or equal to the length of label rows,
+        Let row be item li of label rows.
+        Let lname be the entry name in row.
+        Add the value of lname to nl names.
+        Add 1 to li.
+    End while.
+    Set label names to the value of nl names.
+    Set num classes to the length of nl names.
+    Note, Load column names.
+    Select from columns and store in col rows.
+    Create a list called nc names.
+    Let ci be 1.
+    While the value of ci is less than or equal to the length of col rows,
+        Let row be item ci of col rows.
+        Let cname be the entry name in row.
+        Add the value of cname to nc names.
+        Add 1 to ci.
+    End while.
+    Set col names to the value of nc names.
+    Set num cols to the value of num inputs plus 1.
+    Note, Load Wh.
+    Let total wh be the value of hidden dim times num inputs.
+    Create a list called nwh.
+    Let si be 1.
+    While the value of si is less than or equal to total wh,
+        Add 0 to nwh.
+        Add 1 to si.
+    End while.
+    Select from weightsh and store in wh rows.
+    Let wi be 1.
+    While the value of wi is less than or equal to the length of wh rows,
+        Let row be item wi of wh rows.
+        Let raw pos be the entry pos in row.
+        Let pos be the number of raw pos.
+        Let raw val be the entry val in row.
+        Let val be the number of raw val.
+        Set item pos of nwh to the value of val.
+        Add 1 to wi.
+    End while.
+    Set wh to the value of nwh.
+    Note, Load Bh.
+    Create a list called nbh.
+    Let si be 1.
+    While the value of si is less than or equal to hidden dim,
+        Add 0 to nbh.
+        Add 1 to si.
+    End while.
+    Select from biasesh and store in bh rows.
+    Let wi be 1.
+    While the value of wi is less than or equal to the length of bh rows,
+        Let row be item wi of bh rows.
+        Let raw pos be the entry pos in row.
+        Let pos be the number of raw pos.
+        Let raw val be the entry val in row.
+        Let val be the number of raw val.
+        Set item pos of nbh to the value of val.
+        Add 1 to wi.
+    End while.
+    Set bh to the value of nbh.
+    Note, Load Wo.
+    Let total wo be the value of num outputs times hidden dim.
+    Create a list called nwo.
+    Let si be 1.
+    While the value of si is less than or equal to total wo,
+        Add 0 to nwo.
+        Add 1 to si.
+    End while.
+    Select from weightso and store in wo rows.
+    Let wi be 1.
+    While the value of wi is less than or equal to the length of wo rows,
+        Let row be item wi of wo rows.
+        Let raw pos be the entry pos in row.
+        Let pos be the number of raw pos.
+        Let raw val be the entry val in row.
+        Let val be the number of raw val.
+        Set item pos of nwo to the value of val.
+        Add 1 to wi.
+    End while.
+    Set wo to the value of nwo.
+    Note, Load Bo.
+    Create a list called nbo.
+    Let si be 1.
+    While the value of si is less than or equal to num outputs,
+        Add 0 to nbo.
+        Add 1 to si.
+    End while.
+    Select from biaseso and store in bo rows.
+    Let wi be 1.
+    While the value of wi is less than or equal to the length of bo rows,
+        Let row be item wi of bo rows.
+        Let raw pos be the entry pos in row.
+        Let pos be the number of raw pos.
+        Let raw val be the entry val in row.
+        Let val be the number of raw val.
+        Set item pos of nbo to the value of val.
+        Add 1 to wi.
+    End while.
+    Set bo to the value of nbo.
+    Close the database.
+    Set model ready to 1.
+    Return 1.
+End define.
+
+Note, API Handlers.
+
+Note, Upload and parse dataset.
+Define handle upload that takes request,
+    Let data be the body of request.
+    Let csv text be the entry text in data.
+    Let task type be the entry task in data.
+    If the value of task type is equal to regression str,
+        Set task class to 0.
+    Otherwise,
+        Set task class to 1.
+    End if.
+    Call parse csv with the value of csv text.
+    If the value of data loaded is equal to 0,
+        Create a dictionary called err.
+        Set the entry error in err to the value of msg parsefail.
+        Respond with the value of err.
+        Return 0.
+    End if.
+    Create a dictionary called resp.
+    Set the entry ok in resp to 1.
+    Set the entry samples in resp to the value of num samples.
+    Set the entry features in resp to the value of num inputs.
+    Set the entry outputs in resp to the value of num outputs.
+    Set the entry labels in resp to the value of label names.
+    Set the entry columns in resp to the value of col names.
+    Note, Send first few rows as preview.
+    Create a list called preview.
+    Let pi be 1.
+    Let max preview be 5.
+    If the value of num samples is less than max preview,
+        Set max preview to the value of num samples.
+    End if.
+    While the value of pi is less than or equal to max preview,
+        Let row be item pi of data rows.
+        Let label be item pi of data labels.
+        Create a dictionary called prev row.
+        Set the entry features in prev row to the value of row.
+        Set the entry label in prev row to the value of label.
+        Add the value of prev row to preview.
+        Add 1 to pi.
+    End while.
+    Set the entry preview in resp to the value of preview.
+    Respond with the value of resp.
+End define.
+
+Note, Start training.
+Define handle train that takes request,
+    If the value of data loaded is equal to 0,
+        Create a dictionary called err.
+        Set the entry error in err to the value of msg nodata.
+        Respond with the value of err.
+        Return 0.
+    End if.
+    Let data be the body of request.
+    Note, Read config from request.
+    If the value of data has the entry hidden dim,
+        Let cfg hd be the entry hidden dim in data.
+        Set hidden dim to the number of cfg hd.
+    End if.
+    If the value of data has the entry steps,
+        Let cfg steps be the entry steps in data.
+        Set num steps to the number of cfg steps.
+    End if.
+    If the value of data has the entry batch size,
+        Let cfg bs be the entry batch size in data.
+        Set batch sz to the number of cfg bs.
+    End if.
+    If the value of data has the entry lr,
+        Let cfg lr be the entry lr in data.
+        Set learn rate to the number of cfg lr.
+    End if.
+    If the value of data has the entry halt mode,
+        Let cfg halt be the entry halt mode in data.
+        Set halt mode to the value of cfg halt.
+    End if.
+    If the value of data has the entry target loss,
+        Let cfg tl be the entry target loss in data.
+        Set target loss val to the number of cfg tl.
+    End if.
+    Note, Initialize and train.
+    Call init weights.
+    Call run training.
+    Note, Compute accuracy.
+    Let acc val be 0.
+    If the value of task class is equal to 1,
+        Call compute accuracy and store the result in acc val.
+    End if.
+    Note, Count parameters.
+    Let ph be the value of hidden dim times num inputs plus hidden dim.
+    Let po be the value of num outputs times hidden dim plus num outputs.
+    Let total params be the value of ph plus po.
+    Create a dictionary called resp.
+    Set the entry ok in resp to 1.
+    Set the entry steps in resp to the value of current step.
+    Set the entry loss in resp to the value of epoch loss.
+    Set the entry accuracy in resp to the value of acc val.
+    Set the entry params in resp to the value of total params.
+    Set the entry losses in resp to the value of loss history.
+    Respond with the value of resp.
+End define.
+
+Note, Fine tune existing model with new data.
+Define handle finetune that takes request,
+    If the value of model ready is equal to 0,
+        Create a dictionary called err.
+        Set the entry error in err to the value of msg nomodel.
+        Respond with the value of err.
+        Return 0.
+    End if.
+    If the value of data loaded is equal to 0,
+        Create a dictionary called err.
+        Set the entry error in err to the value of msg nodata.
+        Respond with the value of err.
+        Return 0.
+    End if.
+    Let data be the body of request.
+    Note, Read fine tune config.
+    If the value of data has the entry steps,
+        Let cfg steps be the entry steps in data.
+        Set num steps to the number of cfg steps.
+    End if.
+    If the value of data has the entry lr,
+        Let cfg lr be the entry lr in data.
+        Set learn rate to the number of cfg lr.
+    End if.
+    If the value of data has the entry batch size,
+        Let cfg bs be the entry batch size in data.
+        Set batch sz to the number of cfg bs.
+    End if.
+    Note, Run training without reinitializing weights.
+    Call run training.
+    Let acc val be 0.
+    If the value of task class is equal to 1,
+        Call compute accuracy and store the result in acc val.
+    End if.
+    Create a dictionary called resp.
+    Set the entry ok in resp to 1.
+    Set the entry steps in resp to the value of current step.
+    Set the entry loss in resp to the value of epoch loss.
+    Set the entry accuracy in resp to the value of acc val.
+    Set the entry losses in resp to the value of loss history.
+    Respond with the value of resp.
+End define.
+
+Note, Get training progress.
+Define handle progress that takes request,
+    Create a dictionary called resp.
+    Set the entry step in resp to the value of current step.
+    Set the entry total in resp to the value of num steps.
+    Set the entry loss in resp to the value of epoch loss.
+    Set the entry done in resp to the value of train done.
+    Set the entry training in resp to the value of training flag.
+    Set the entry losses in resp to the value of loss history.
+    Respond with the value of resp.
+End define.
+
+Note, Make prediction.
+Define handle predict that takes request,
+    If the value of model ready is equal to 0,
+        Create a dictionary called err.
+        Set the entry error in err to the value of msg nomodel.
+        Respond with the value of err.
+        Return 0.
+    End if.
+    Let data be the body of request.
+    Let input vals be the entry features in data.
+    Call do forward with the value of input vals.
+    Create a dictionary called resp.
+    Set the entry ok in resp to 1.
+    If the value of task class is equal to 1,
+        Note, Find argmax for predicted class.
+        Let best idx be 1.
+        Let best val be item 1 of ao cache.
+        Let ki be 2.
+        While the value of ki is less than or equal to num outputs,
+            Let p be item ki of ao cache.
+            If the value of p is greater than best val,
+                Set best idx to the value of ki.
+                Set best val to the value of p.
+            End if.
+            Add 1 to ki.
+        End while.
+        Let pred name be item best idx of label names.
+        Set the entry prediction in resp to the value of pred name.
+        Set the entry confidence in resp to the value of best val.
+        Set the entry probabilities in resp to the value of ao cache.
+        Set the entry labels in resp to the value of label names.
+    Otherwise,
+        Let pred val be item 1 of ao cache.
+        Set the entry prediction in resp to the value of pred val.
+    End if.
+    Respond with the value of resp.
+End define.
+
+Note, Save model.
+Define handle save that takes request,
+    If the value of model ready is equal to 0,
+        Create a dictionary called err.
+        Set the entry error in err to the value of msg nosave.
+        Respond with the value of err.
+        Return 0.
+    End if.
+    Call save model.
+    Create a dictionary called resp.
+    Set the entry ok in resp to 1.
+    Set the entry msg in resp to the value of msg saved.
+    Respond with the value of resp.
+End define.
+
+Note, Load model.
+Define handle load that takes request,
+    Call load model.
+    Create a dictionary called resp.
+    Set the entry ok in resp to 1.
+    Set the entry inputs in resp to the value of num inputs.
+    Set the entry outputs in resp to the value of num outputs.
+    Set the entry hidden in resp to the value of hidden dim.
+    Set the entry classification in resp to the value of task class.
+    Set the entry labels in resp to the value of label names.
+    Set the entry columns in resp to the value of col names.
+    Set the entry msg in resp to the value of msg loaded.
+    Respond with the value of resp.
+End define.
+
+Note, Get model info.
+Define handle info that takes request,
+    Create a dictionary called resp.
+    Set the entry model ready in resp to the value of model ready.
+    Set the entry data loaded in resp to the value of data loaded.
+    Set the entry num inputs in resp to the value of num inputs.
+    Set the entry num outputs in resp to the value of num outputs.
+    Set the entry hidden dim in resp to the value of hidden dim.
+    Set the entry task class in resp to the value of task class.
+    Set the entry num samples in resp to the value of num samples.
+    Set the entry labels in resp to the value of label names.
+    Set the entry columns in resp to the value of col names.
+    Set the entry current step in resp to the value of current step.
+    Set the entry last loss in resp to the value of epoch loss.
+    Respond with the value of resp.
+End define.
+
+Note, Serve the main page.
+Define handle home that takes request,
+    Read the file public slash index dot html and store it in content.
+    Set content type to text slash html.
+    Respond with the value of content.
+End define.
+
+Note, Start Server.
+Start a webserver on port 8090.
+Enable CORS.
+Serve static files from the folder public.
+Add route GET slash to handle home.
+Add route GET slash api slash info to handle info.
+Add route POST slash api slash upload to handle upload.
+Add route POST slash api slash train to handle train.
+Add route POST slash api slash finetune to handle finetune.
+Add route GET slash api slash progress to handle progress.
+Add route POST slash api slash predict to handle predict.
+Add route POST slash api slash save to handle save.
+Add route POST slash api slash load to handle load.
+
+Say Neural Network Studio running on port 8090.
+Wait for connections.

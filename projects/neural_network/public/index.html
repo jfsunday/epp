@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Neural Network Studio</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#0f0f1a;--surface:#1a1a2e;--surface2:#252540;--surface3:#30304a;--text:#e0e0f0;--subtext:#8888aa;--accent:#6c63ff;--accent2:#8b83ff;--green:#4ade80;--red:#f87171;--yellow:#fbbf24;--orange:#fb923c;--cyan:#22d3ee;--font:'Inter',system-ui,-apple-system,sans-serif;--mono:'JetBrains Mono','Fira Code',monospace;--radius:10px}
+body{background:var(--bg);color:var(--text);font-family:var(--font);min-height:100vh;line-height:1.5}
+.app{max-width:1200px;margin:0 auto;padding:20px}
+
+/* Header */
+.header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px}
+.header h1{font-size:1.5rem;font-weight:700;background:linear-gradient(135deg,var(--accent),var(--cyan));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.header-actions{display:flex;gap:8px}
+
+/* Tabs */
+.tabs{display:flex;gap:4px;margin-bottom:20px;background:var(--surface);padding:4px;border-radius:var(--radius);overflow-x:auto}
+.tab{padding:10px 20px;border:none;background:none;color:var(--subtext);font-family:var(--font);font-size:.85rem;font-weight:500;cursor:pointer;border-radius:calc(var(--radius) - 2px);transition:all .2s;white-space:nowrap}
+.tab:hover{color:var(--text);background:var(--surface2)}
+.tab.active{background:var(--accent);color:#fff}
+.tab-content{display:none}
+.tab-content.active{display:block}
+
+/* Cards */
+.card{background:var(--surface);border-radius:var(--radius);padding:20px;margin-bottom:16px}
+.card h2{font-size:1rem;font-weight:600;color:var(--accent2);margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.card h3{font-size:.85rem;font-weight:600;color:var(--subtext);margin:14px 0 8px;text-transform:uppercase;letter-spacing:.05em}
+
+/* Grid */
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:768px){.grid{grid-template-columns:1fr}}
+.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+@media(max-width:600px){.grid-3{grid-template-columns:1fr}}
+.full{grid-column:1/-1}
+
+/* Inputs */
+label{display:block;font-size:.75rem;color:var(--subtext);margin-bottom:4px;font-weight:500;text-transform:uppercase;letter-spacing:.03em}
+input,textarea,select{width:100%;padding:8px 12px;background:var(--bg);border:1px solid var(--surface3);border-radius:6px;color:var(--text);font-family:var(--font);font-size:.85rem;outline:none;transition:border .2s}
+input:focus,textarea:focus,select:focus{border-color:var(--accent)}
+textarea{resize:vertical;min-height:120px;font-family:var(--mono);font-size:.8rem}
+.input-row{display:flex;gap:12px;flex-wrap:wrap}
+.input-row>div{flex:1;min-width:100px}
+
+/* Buttons */
+.btn{padding:8px 18px;border:none;border-radius:6px;font-family:var(--font);font-size:.85rem;font-weight:600;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:6px}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-primary:hover:not(:disabled){background:var(--accent2)}
+.btn-success{background:var(--green);color:#111}
+.btn-danger{background:var(--red);color:#fff}
+.btn-outline{background:none;border:1px solid var(--surface3);color:var(--text)}
+.btn-outline:hover:not(:disabled){border-color:var(--accent);color:var(--accent)}
+.btn-sm{padding:6px 12px;font-size:.78rem}
+.btn-group{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+
+/* Badge */
+.badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em}
+.badge-idle{background:var(--surface3);color:var(--subtext)}
+.badge-training{background:var(--yellow);color:#111;animation:pulse 1.5s infinite}
+.badge-done{background:var(--green);color:#111}
+.badge-error{background:var(--red);color:#fff}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+
+/* Stats */
+.stats{display:flex;gap:20px;flex-wrap:wrap;margin:12px 0}
+.stat{text-align:center;min-width:70px}
+.stat-val{font-size:1.5rem;font-weight:700;color:var(--accent);font-family:var(--mono)}
+.stat-label{font-size:.65rem;color:var(--subtext);text-transform:uppercase;letter-spacing:.05em;margin-top:2px}
+
+/* Progress */
+.progress{height:4px;background:var(--bg);border-radius:2px;overflow:hidden;margin-top:10px}
+.progress-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--cyan));border-radius:2px;transition:width .3s;width:0}
+
+/* Chart */
+.chart-box{position:relative;height:240px;margin-top:8px}
+
+/* Log */
+.log{background:var(--bg);border-radius:6px;padding:10px;font-family:var(--mono);font-size:.72rem;color:var(--subtext);max-height:180px;overflow-y:auto;margin-top:8px;white-space:pre-wrap;line-height:1.6}
+
+/* Data table */
+.data-table{width:100%;border-collapse:collapse;font-size:.8rem;margin-top:8px}
+.data-table th{background:var(--surface2);padding:8px 10px;text-align:left;font-weight:600;font-size:.72rem;text-transform:uppercase;letter-spacing:.03em;color:var(--subtext)}
+.data-table td{padding:6px 10px;border-bottom:1px solid var(--surface2);font-family:var(--mono);font-size:.78rem}
+.data-table tr:hover td{background:var(--surface2)}
+
+/* Predict result */
+.result-box{background:var(--bg);border-radius:var(--radius);padding:20px;margin-top:12px;text-align:center}
+.result-box .prediction{font-size:2rem;font-weight:700;color:var(--green);font-family:var(--mono)}
+.result-box .confidence{font-size:.9rem;color:var(--subtext);margin-top:4px}
+.prob-bars{margin-top:16px}
+.prob-bar{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.prob-bar .label{width:80px;font-size:.78rem;color:var(--subtext);text-align:right;font-family:var(--mono)}
+.prob-bar .bar{flex:1;height:20px;background:var(--surface2);border-radius:4px;overflow:hidden}
+.prob-bar .bar-fill{height:100%;background:var(--accent);border-radius:4px;transition:width .3s}
+.prob-bar .val{width:50px;font-size:.75rem;color:var(--subtext);font-family:var(--mono)}
+
+/* Tags */
+.tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:8px}
+.tag{background:var(--surface2);padding:3px 8px;border-radius:4px;font-size:.72rem;color:var(--subtext);font-family:var(--mono)}
+
+/* Toast */
+.toast{position:fixed;bottom:20px;right:20px;background:var(--surface2);color:var(--text);padding:12px 20px;border-radius:var(--radius);font-size:.85rem;z-index:1000;transform:translateY(100px);opacity:0;transition:all .3s}
+.toast.show{transform:translateY(0);opacity:1}
+.toast.error{border-left:3px solid var(--red)}
+.toast.success{border-left:3px solid var(--green)}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <h1>Neural Network Studio</h1>
+    <div class="header-actions">
+      <span class="badge badge-idle" id="status">Idle</span>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" onclick="showTab('data')">Data</button>
+    <button class="tab" onclick="showTab('model')">Model</button>
+    <button class="tab" onclick="showTab('train')">Train</button>
+    <button class="tab" onclick="showTab('finetune')">Fine-Tune</button>
+    <button class="tab" onclick="showTab('predict')">Predict</button>
+    <button class="tab" onclick="showTab('log')">Log</button>
+  </div>
+
+  <!-- DATA TAB -->
+  <div id="tab-data" class="tab-content active">
+    <div class="card">
+      <h2>Upload Dataset</h2>
+      <p style="font-size:.8rem;color:var(--subtext);margin-bottom:12px">CSV format: columns separated by commas, first row is header, last column is the target label.</p>
+      <textarea id="csv-input" placeholder="feature1,feature2,label&#10;1.0,2.0,classA&#10;3.0,4.0,classB&#10;..."></textarea>
+      <div class="input-row" style="margin-top:12px">
+        <div style="flex:0 0 auto">
+          <input type="file" id="file-input" accept=".csv,.txt" style="display:none">
+          <button class="btn btn-outline btn-sm" onclick="document.getElementById('file-input').click()">Load File</button>
+        </div>
+        <div>
+          <label>Task Type</label>
+          <select id="task-type">
+            <option value="classification">Classification</option>
+            <option value="regression">Regression</option>
+          </select>
+        </div>
+        <div style="flex:0 0 auto;display:flex;align-items:flex-end">
+          <button class="btn btn-primary" onclick="uploadData()">Upload</button>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="data-info" style="display:none">
+      <h2>Dataset Info</h2>
+      <div class="stats" id="data-stats"></div>
+      <h3>Preview</h3>
+      <div style="overflow-x:auto"><table class="data-table" id="data-preview"></table></div>
+      <h3>Labels</h3>
+      <div class="tags" id="data-labels"></div>
+    </div>
+    <div class="card">
+      <h2>Sample Datasets</h2>
+      <div class="btn-group">
+        <button class="btn btn-outline btn-sm" onclick="loadSample('iris')">Iris (Classification)</button>
+        <button class="btn btn-outline btn-sm" onclick="loadSample('xor')">XOR (Classification)</button>
+        <button class="btn btn-outline btn-sm" onclick="loadSample('circle')">Circle (Classification)</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODEL TAB -->
+  <div id="tab-model" class="tab-content">
+    <div class="grid">
+      <div class="card">
+        <h2>Architecture</h2>
+        <div class="input-row">
+          <div><label>Hidden Neurons</label><input type="number" id="cfg-hidden" value="16"></div>
+        </div>
+        <p style="font-size:.75rem;color:var(--subtext);margin-top:10px">Input and output dimensions are set automatically based on your data.</p>
+      </div>
+      <div class="card">
+        <h2>Current Model</h2>
+        <div id="model-info">
+          <p style="color:var(--subtext);font-size:.85rem">No model loaded. Upload data and train to create one.</p>
+        </div>
+        <div class="btn-group">
+          <button class="btn btn-outline btn-sm" onclick="saveModel()">Save to DB</button>
+          <button class="btn btn-outline btn-sm" onclick="loadModel()">Load from DB</button>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Network Visualization</h2>
+      <canvas id="net-canvas" width="800" height="300" style="width:100%;border-radius:6px;background:var(--bg)"></canvas>
+    </div>
+  </div>
+
+  <!-- TRAIN TAB -->
+  <div id="tab-train" class="tab-content">
+    <div class="card">
+      <h2>Training Configuration</h2>
+      <div class="input-row">
+        <div><label>Steps</label><input type="number" id="cfg-steps" value="1000"></div>
+        <div><label>Batch Size</label><input type="number" id="cfg-batch" value="4"></div>
+        <div><label>Learning Rate</label><input type="number" id="cfg-lr" value="0.01" step="0.001"></div>
+      </div>
+      <div class="input-row" style="margin-top:10px">
+        <div><label>Stop Mode</label>
+          <select id="cfg-halt">
+            <option value="steps">Steps</option>
+            <option value="loss">Target Loss</option>
+          </select>
+        </div>
+        <div><label>Target Loss</label><input type="number" id="cfg-target-loss" value="0.1" step="0.01"></div>
+      </div>
+      <div class="btn-group">
+        <button class="btn btn-primary" id="btn-train" onclick="startTraining()">Start Training</button>
+      </div>
+    </div>
+    <div class="card" id="train-progress" style="display:none">
+      <h2>Training Progress</h2>
+      <div class="stats">
+        <div class="stat"><div class="stat-val" id="s-step">0</div><div class="stat-label">Step</div></div>
+        <div class="stat"><div class="stat-val" id="s-loss">-</div><div class="stat-label">Loss</div></div>
+        <div class="stat"><div class="stat-val" id="s-acc">-</div><div class="stat-label">Accuracy</div></div>
+        <div class="stat"><div class="stat-val" id="s-params">-</div><div class="stat-label">Params</div></div>
+      </div>
+      <div class="progress"><div class="progress-fill" id="progress-bar"></div></div>
+    </div>
+    <div class="grid">
+      <div class="card">
+        <h2>Loss Curve</h2>
+        <div class="chart-box"><canvas id="loss-chart"></canvas></div>
+      </div>
+      <div class="card">
+        <h2>Loss (Smoothed)</h2>
+        <div class="chart-box"><canvas id="loss-smooth-chart"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FINE-TUNE TAB -->
+  <div id="tab-finetune" class="tab-content">
+    <div class="card">
+      <h2>Supervised Fine-Tuning (SFT)</h2>
+      <p style="font-size:.82rem;color:var(--subtext);margin-bottom:14px">
+        Load a saved model and continue training on new or existing data with a lower learning rate.
+        The model weights are preserved and refined rather than reinitialized.
+      </p>
+      <div class="input-row">
+        <div><label>Steps</label><input type="number" id="sft-steps" value="500"></div>
+        <div><label>Batch Size</label><input type="number" id="sft-batch" value="4"></div>
+        <div><label>Learning Rate</label><input type="number" id="sft-lr" value="0.001" step="0.0001"></div>
+      </div>
+      <div class="btn-group">
+        <button class="btn btn-outline" onclick="loadModel()">Load Model First</button>
+        <button class="btn btn-primary" onclick="startFineTune()">Start Fine-Tuning</button>
+      </div>
+    </div>
+    <div class="card" id="sft-result" style="display:none">
+      <h2>Fine-Tuning Result</h2>
+      <div class="stats" id="sft-stats"></div>
+      <div class="chart-box"><canvas id="sft-chart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- PREDICT TAB -->
+  <div id="tab-predict" class="tab-content">
+    <div class="card">
+      <h2>Make Prediction</h2>
+      <div id="predict-inputs">
+        <p style="color:var(--subtext);font-size:.85rem">Train or load a model first to see input fields.</p>
+      </div>
+      <div class="btn-group">
+        <button class="btn btn-primary" onclick="predict()">Predict</button>
+      </div>
+    </div>
+    <div class="card" id="predict-result" style="display:none">
+      <h2>Result</h2>
+      <div class="result-box" id="result-box"></div>
+    </div>
+  </div>
+
+  <!-- LOG TAB -->
+  <div id="tab-log" class="tab-content">
+    <div class="card">
+      <h2>Activity Log</h2>
+      <div class="log" id="log-output" style="max-height:500px">Neural Network Studio ready.</div>
+      <div class="btn-group">
+        <button class="btn btn-outline btn-sm" onclick="document.getElementById('log-output').textContent=''">Clear</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// State
+let modelInfo = null;
+let lossChart, lossSmoothChart, sftChart;
+
+// Init charts
+function mkChart(id, color, label) {
+  return new Chart(document.getElementById(id), {
+    type: 'line',
+    data: { labels: [], datasets: [{ label, data: [], borderColor: color, borderWidth: 1.5, pointRadius: 0, tension: .3, fill: false }] },
+    options: { responsive: true, maintainAspectRatio: false, animation: false,
+      scales: { x: { display: false }, y: { ticks: { color: '#8888aa', font: { size: 10 } }, grid: { color: '#25254022' } } },
+      plugins: { legend: { display: false } } }
+  });
+}
+lossChart = mkChart('loss-chart', '#f87171', 'Loss');
+lossSmoothChart = mkChart('loss-smooth-chart', '#6c63ff', 'Smoothed');
+
+// Tabs
+function showTab(name) {
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  document.querySelector(`.tab[onclick="showTab('${name}')"]`).classList.add('active');
+  if (name === 'model') drawNetwork();
+  if (name === 'predict') buildPredictInputs();
+}
+
+// Toast
+function toast(msg, type = '') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast show ' + type;
+  setTimeout(() => el.className = 'toast', 3000);
+}
+
+// Log
+function log(msg) {
+  const el = document.getElementById('log-output');
+  const time = new Date().toLocaleTimeString();
+  el.textContent += '\n[' + time + '] ' + msg;
+  el.scrollTop = el.scrollHeight;
+}
+
+// File input
+document.getElementById('file-input').addEventListener('change', e => {
+  const f = e.target.files[0];
+  if (!f) return;
+  f.text().then(t => { document.getElementById('csv-input').value = t; log('File loaded: ' + f.name); toast('File loaded', 'success'); });
+});
+
+// Sample datasets
+const SAMPLES = {
+  iris: `sepal_length,sepal_width,petal_length,petal_width,species
+5.1,3.5,1.4,0.2,setosa
+4.9,3.0,1.4,0.2,setosa
+4.7,3.2,1.3,0.2,setosa
+5.0,3.6,1.4,0.2,setosa
+5.4,3.9,1.7,0.4,setosa
+4.6,3.4,1.4,0.3,setosa
+5.0,3.4,1.5,0.2,setosa
+4.4,2.9,1.4,0.2,setosa
+4.9,3.1,1.5,0.1,setosa
+5.4,3.7,1.5,0.2,setosa
+4.8,3.4,1.6,0.2,setosa
+5.8,4.0,1.2,0.2,setosa
+5.7,4.4,1.5,0.4,setosa
+5.4,3.9,1.3,0.4,setosa
+5.1,3.5,1.4,0.3,setosa
+5.7,3.8,1.7,0.3,setosa
+5.1,3.8,1.5,0.3,setosa
+5.4,3.4,1.7,0.2,setosa
+5.1,3.7,1.5,0.4,setosa
+4.6,3.6,1.0,0.2,setosa
+7.0,3.2,4.7,1.4,versicolor
+6.4,3.2,4.5,1.5,versicolor
+6.9,3.1,4.9,1.5,versicolor
+5.5,2.3,4.0,1.3,versicolor
+6.5,2.8,4.6,1.5,versicolor
+5.7,2.8,4.5,1.3,versicolor
+6.3,3.3,4.7,1.6,versicolor
+4.9,2.4,3.3,1.0,versicolor
+6.6,2.9,4.6,1.3,versicolor
+5.2,2.7,3.9,1.4,versicolor
+5.0,2.0,3.5,1.0,versicolor
+5.9,3.0,4.2,1.5,versicolor
+6.0,2.2,4.0,1.0,versicolor
+6.1,2.9,4.7,1.4,versicolor
+5.6,2.9,3.6,1.3,versicolor
+6.7,3.1,4.4,1.4,versicolor
+5.6,3.0,4.5,1.5,versicolor
+5.8,2.7,4.1,1.0,versicolor
+6.2,2.2,4.5,1.5,versicolor
+5.6,2.5,3.9,1.1,versicolor
+6.3,3.3,6.0,2.5,virginica
+5.8,2.7,5.1,1.9,virginica
+7.1,3.0,5.9,2.1,virginica
+6.3,2.9,5.6,1.8,virginica
+6.5,3.0,5.8,2.2,virginica
+7.6,3.0,6.6,2.1,virginica
+4.9,2.5,4.5,1.7,virginica
+7.3,2.9,6.3,1.8,virginica
+6.7,2.5,5.8,1.8,virginica
+7.2,3.6,6.1,2.5,virginica
+6.5,3.2,5.1,2.0,virginica
+6.4,2.7,5.3,1.9,virginica
+6.8,3.0,5.5,2.1,virginica
+5.7,2.5,5.0,2.0,virginica
+5.8,2.8,5.1,2.4,virginica
+6.4,3.2,5.3,2.3,virginica
+6.5,3.0,5.5,1.8,virginica
+7.7,3.8,6.7,2.2,virginica
+7.7,2.6,6.9,2.3,virginica
+6.0,2.2,5.0,1.5,virginica`,
+  xor: `x1,x2,class
+0,0,zero
+0,1,one
+1,0,one
+1,1,zero
+0,0,zero
+0,1,one
+1,0,one
+1,1,zero
+0.1,0.1,zero
+0.1,0.9,one
+0.9,0.1,one
+0.9,0.9,zero
+0.05,0.05,zero
+0.05,0.95,one
+0.95,0.05,one
+0.95,0.95,zero
+0.2,0.2,zero
+0.2,0.8,one
+0.8,0.2,one
+0.8,0.8,zero`,
+  circle: (function() {
+    let rows = ['x,y,class'];
+    for (let i = 0; i < 80; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const r = Math.random() * 0.4;
+      rows.push(`${(Math.cos(a)*r).toFixed(3)},${(Math.sin(a)*r).toFixed(3)},inner`);
+    }
+    for (let i = 0; i < 80; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const r = 0.6 + Math.random() * 0.4;
+      rows.push(`${(Math.cos(a)*r).toFixed(3)},${(Math.sin(a)*r).toFixed(3)},outer`);
+    }
+    return rows.join('\n');
+  })()
+};
+
+function loadSample(name) {
+  document.getElementById('csv-input').value = SAMPLES[name];
+  log('Loaded sample: ' + name);
+  toast('Sample loaded: ' + name, 'success');
+}
+
+// Upload data
+async function uploadData() {
+  const text = document.getElementById('csv-input').value.trim();
+  if (!text) { toast('No data entered', 'error'); return; }
+  const task = document.getElementById('task-type').value;
+  log('Uploading dataset (' + task + ')...');
+  try {
+    const res = await fetch('/api/upload', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text, task }) });
+    const d = await res.json();
+    if (d.error) { toast(d.error, 'error'); log('Error: ' + d.error); return; }
+    modelInfo = d;
+    log(`Dataset: ${d.samples} samples, ${d.features} features, ${d.outputs} outputs`);
+    toast('Data uploaded!', 'success');
+
+    // Show info
+    const info = document.getElementById('data-info');
+    info.style.display = 'block';
+    document.getElementById('data-stats').innerHTML = `
+      <div class="stat"><div class="stat-val">${d.samples}</div><div class="stat-label">Samples</div></div>
+      <div class="stat"><div class="stat-val">${d.features}</div><div class="stat-label">Features</div></div>
+      <div class="stat"><div class="stat-val">${d.outputs}</div><div class="stat-label">Classes</div></div>`;
+
+    // Preview table
+    if (d.preview && d.preview.length > 0 && d.columns) {
+      let html = '<thead><tr>';
+      d.columns.forEach((c, i) => { if (i < d.features) html += `<th>${c}</th>`; });
+      html += '<th>Label</th></tr></thead><tbody>';
+      d.preview.forEach(row => {
+        html += '<tr>';
+        row.features.forEach(v => html += `<td>${typeof v === 'number' ? v.toFixed(2) : v}</td>`);
+        html += `<td>${row.label}</td></tr>`;
+      });
+      html += '</tbody>';
+      document.getElementById('data-preview').innerHTML = html;
+    }
+
+    // Labels
+    if (d.labels) {
+      document.getElementById('data-labels').innerHTML = d.labels.map(l => `<span class="tag">${l}</span>`).join('');
+    }
+  } catch (e) { toast('Upload failed: ' + e.message, 'error'); log('Error: ' + e.message); }
+}
+
+// Start training
+async function startTraining() {
+  const cfg = {
+    hidden_dim: parseInt(document.getElementById('cfg-hidden').value),
+    steps: parseInt(document.getElementById('cfg-steps').value),
+    batch_size: parseInt(document.getElementById('cfg-batch').value),
+    lr: parseFloat(document.getElementById('cfg-lr').value),
+    halt_mode: document.getElementById('cfg-halt').value,
+    target_loss: parseFloat(document.getElementById('cfg-target-loss').value)
+  };
+  document.getElementById('btn-train').disabled = true;
+  setStatus('training');
+  document.getElementById('train-progress').style.display = 'block';
+  log('Training started: ' + cfg.steps + ' steps, lr=' + cfg.lr + ', hidden=' + cfg.hidden_dim);
+
+  try {
+    const res = await fetch('/api/train', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cfg) });
+    const d = await res.json();
+    if (d.error) { toast(d.error, 'error'); log('Error: ' + d.error); setStatus('error'); document.getElementById('btn-train').disabled = false; return; }
+
+    document.getElementById('s-step').textContent = d.steps;
+    document.getElementById('s-loss').textContent = d.loss.toFixed(4);
+    document.getElementById('s-acc').textContent = d.accuracy !== undefined ? (d.accuracy * 100).toFixed(1) + '%' : '-';
+    document.getElementById('s-params').textContent = d.params;
+    document.getElementById('progress-bar').style.width = '100%';
+
+    if (d.losses) updateChart(lossChart, lossSmoothChart, d.losses);
+
+    setStatus('done');
+    toast('Training complete! Loss: ' + d.loss.toFixed(4), 'success');
+    log(`Done: ${d.steps} steps, loss=${d.loss.toFixed(4)}, acc=${d.accuracy !== undefined ? (d.accuracy*100).toFixed(1)+'%' : 'N/A'}, params=${d.params}`);
+    modelInfo = { ...modelInfo, model_ready: true };
+  } catch (e) { toast('Training failed: ' + e.message, 'error'); log('Error: ' + e.message); setStatus('error'); }
+  document.getElementById('btn-train').disabled = false;
+}
+
+// Fine-tune
+async function startFineTune() {
+  const cfg = {
+    steps: parseInt(document.getElementById('sft-steps').value),
+    batch_size: parseInt(document.getElementById('sft-batch').value),
+    lr: parseFloat(document.getElementById('sft-lr').value)
+  };
+  setStatus('training');
+  log('Fine-tuning started: ' + cfg.steps + ' steps, lr=' + cfg.lr);
+
+  try {
+    const res = await fetch('/api/finetune', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cfg) });
+    const d = await res.json();
+    if (d.error) { toast(d.error, 'error'); log('Error: ' + d.error); setStatus('error'); return; }
+
+    const result = document.getElementById('sft-result');
+    result.style.display = 'block';
+    document.getElementById('sft-stats').innerHTML = `
+      <div class="stat"><div class="stat-val">${d.steps}</div><div class="stat-label">Steps</div></div>
+      <div class="stat"><div class="stat-val">${d.loss.toFixed(4)}</div><div class="stat-label">Final Loss</div></div>
+      <div class="stat"><div class="stat-val">${d.accuracy !== undefined ? (d.accuracy*100).toFixed(1)+'%' : '-'}</div><div class="stat-label">Accuracy</div></div>`;
+
+    if (d.losses) {
+      if (!sftChart) sftChart = mkChart('sft-chart', '#4ade80', 'SFT Loss');
+      const labels = d.losses.map((_, i) => i + 1);
+      sftChart.data.labels = labels;
+      sftChart.data.datasets[0].data = d.losses;
+      sftChart.update();
+    }
+
+    setStatus('done');
+    toast('Fine-tuning complete!', 'success');
+    log(`SFT done: loss=${d.loss.toFixed(4)}, acc=${d.accuracy !== undefined ? (d.accuracy*100).toFixed(1)+'%' : 'N/A'}`);
+  } catch (e) { toast('Fine-tuning failed: ' + e.message, 'error'); log('Error: ' + e.message); setStatus('error'); }
+}
+
+// Predict
+function buildPredictInputs() {
+  const el = document.getElementById('predict-inputs');
+  if (!modelInfo || !modelInfo.columns) {
+    el.innerHTML = '<p style="color:var(--subtext);font-size:.85rem">Train or load a model first.</p>';
+    return;
+  }
+  const cols = modelInfo.columns;
+  const numFeats = modelInfo.features || cols.length;
+  let html = '<div class="input-row">';
+  for (let i = 0; i < numFeats; i++) {
+    html += `<div><label>${cols[i] || 'Feature ' + (i+1)}</label><input type="number" id="pred-f${i}" step="0.1" value="0"></div>`;
+    if ((i + 1) % 4 === 0 && i < numFeats - 1) html += '</div><div class="input-row" style="margin-top:8px">';
+  }
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+async function predict() {
+  if (!modelInfo) { toast('No model available', 'error'); return; }
+  const numFeats = modelInfo.features || 0;
+  const features = [];
+  for (let i = 0; i < numFeats; i++) {
+    const el = document.getElementById('pred-f' + i);
+    if (!el) { toast('Missing input field', 'error'); return; }
+    features.push(parseFloat(el.value) || 0);
+  }
+  log('Predicting with features: [' + features.map(v=>v.toFixed(2)).join(', ') + ']');
+
+  try {
+    const res = await fetch('/api/predict', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ features }) });
+    const d = await res.json();
+    if (d.error) { toast(d.error, 'error'); return; }
+
+    const result = document.getElementById('predict-result');
+    result.style.display = 'block';
+    let html = `<div class="prediction">${d.prediction}</div>`;
+    if (d.confidence !== undefined) {
+      html += `<div class="confidence">${(d.confidence * 100).toFixed(1)}% confidence</div>`;
+    }
+    if (d.probabilities && d.labels) {
+      html += '<div class="prob-bars">';
+      for (let i = 0; i < d.labels.length; i++) {
+        const pct = (d.probabilities[i] * 100).toFixed(1);
+        html += `<div class="prob-bar">
+          <span class="label">${d.labels[i]}</span>
+          <div class="bar"><div class="bar-fill" style="width:${pct}%"></div></div>
+          <span class="val">${pct}%</span>
+        </div>`;
+      }
+      html += '</div>';
+    }
+    document.getElementById('result-box').innerHTML = html;
+    log('Prediction: ' + d.prediction + (d.confidence ? ' (' + (d.confidence*100).toFixed(1) + '%)' : ''));
+  } catch (e) { toast('Prediction failed: ' + e.message, 'error'); }
+}
+
+// Save / Load model
+async function saveModel() {
+  log('Saving model...');
+  try {
+    const res = await fetch('/api/save', { method: 'POST' });
+    const d = await res.json();
+    if (d.error) { toast(d.error, 'error'); return; }
+    toast(d.msg || 'Model saved!', 'success');
+    log('Model saved to database');
+  } catch (e) { toast('Save failed: ' + e.message, 'error'); }
+}
+
+async function loadModel() {
+  log('Loading model...');
+  try {
+    const res = await fetch('/api/load', { method: 'POST' });
+    const d = await res.json();
+    if (d.error) { toast(d.error, 'error'); return; }
+    modelInfo = { ...modelInfo, ...d, model_ready: true, features: d.inputs };
+    toast(d.msg || 'Model loaded!', 'success');
+    log(`Model loaded: ${d.inputs} inputs, ${d.outputs} outputs, hidden=${d.hidden}`);
+    updateModelInfo();
+    buildPredictInputs();
+    drawNetwork();
+  } catch (e) { toast('Load failed: ' + e.message, 'error'); }
+}
+
+// Helpers
+function setStatus(s) {
+  const el = document.getElementById('status');
+  const map = { idle: ['Idle','badge-idle'], training: ['Training...','badge-training'], done: ['Done','badge-done'], error: ['Error','badge-error'] };
+  const [text, cls] = map[s] || map.idle;
+  el.textContent = text;
+  el.className = 'badge ' + cls;
+}
+
+function updateModelInfo() {
+  if (!modelInfo) return;
+  const el = document.getElementById('model-info');
+  el.innerHTML = `
+    <div class="stats">
+      <div class="stat"><div class="stat-val">${modelInfo.inputs || modelInfo.features || '?'}</div><div class="stat-label">Inputs</div></div>
+      <div class="stat"><div class="stat-val">${modelInfo.hidden || '?'}</div><div class="stat-label">Hidden</div></div>
+      <div class="stat"><div class="stat-val">${modelInfo.outputs || '?'}</div><div class="stat-label">Outputs</div></div>
+    </div>
+    ${modelInfo.labels ? '<div class="tags">' + modelInfo.labels.map(l => '<span class="tag">'+l+'</span>').join('') + '</div>' : ''}`;
+}
+
+function updateChart(rawChart, smoothChart, losses) {
+  // Subsample if needed
+  let L = losses, labels;
+  if (L.length > 500) {
+    const s = Math.ceil(L.length / 500);
+    const nL = [], nLb = [];
+    for (let i = 0; i < L.length; i += s) { nLb.push(i + 1); nL.push(L[i]); }
+    L = nL; labels = nLb;
+  } else {
+    labels = L.map((_, i) => i + 1);
+  }
+  rawChart.data.labels = labels;
+  rawChart.data.datasets[0].data = L;
+  rawChart.update();
+
+  // Smoothed (EMA)
+  const alpha = 0.05;
+  const smoothed = [];
+  let ema = L[0];
+  for (const v of L) { ema = alpha * v + (1 - alpha) * ema; smoothed.push(ema); }
+  smoothChart.data.labels = labels;
+  smoothChart.data.datasets[0].data = smoothed;
+  smoothChart.update();
+}
+
+// Network visualization
+function drawNetwork() {
+  const canvas = document.getElementById('net-canvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+
+  const ni = modelInfo ? (modelInfo.inputs || modelInfo.features || 4) : 4;
+  const nh = modelInfo ? (modelInfo.hidden || parseInt(document.getElementById('cfg-hidden').value)) : 16;
+  const no = modelInfo ? (modelInfo.outputs || 2) : 2;
+
+  const layers = [Math.min(ni, 10), Math.min(nh, 12), Math.min(no, 8)];
+  const layerX = [W * 0.15, W * 0.5, W * 0.85];
+  const colors = ['#6c63ff', '#22d3ee', '#4ade80'];
+  const layerLabels = [`Input (${ni})`, `Hidden (${nh})`, `Output (${no})`];
+
+  // Draw connections
+  ctx.strokeStyle = 'rgba(108,99,255,0.08)';
+  ctx.lineWidth = 0.5;
+  for (let l = 0; l < layers.length - 1; l++) {
+    const n1 = layers[l], n2 = layers[l + 1];
+    for (let i = 0; i < n1; i++) {
+      const y1 = H / 2 + (i - (n1 - 1) / 2) * Math.min(24, (H - 60) / n1);
+      for (let j = 0; j < n2; j++) {
+        const y2 = H / 2 + (j - (n2 - 1) / 2) * Math.min(24, (H - 60) / n2);
+        ctx.beginPath();
+        ctx.moveTo(layerX[l], y1);
+        ctx.lineTo(layerX[l + 1], y2);
+        ctx.stroke();
+      }
+    }
+  }
+
+  // Draw nodes
+  for (let l = 0; l < layers.length; l++) {
+    const n = layers[l];
+    for (let i = 0; i < n; i++) {
+      const y = H / 2 + (i - (n - 1) / 2) * Math.min(24, (H - 60) / n);
+      ctx.fillStyle = colors[l];
+      ctx.beginPath();
+      ctx.arc(layerX[l], y, 6, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.fillStyle = '#8888aa';
+    ctx.font = '11px Inter, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(layerLabels[l], layerX[l], H - 10);
+  }
+}
+
+// Init
+fetchInfo();
+async function fetchInfo() {
+  try {
+    const res = await fetch('/api/info');
+    const d = await res.json();
+    if (d.model_ready) {
+      modelInfo = { ...d, features: d.num_inputs, inputs: d.num_inputs, outputs: d.num_outputs, hidden: d.hidden_dim };
+      updateModelInfo();
+      buildPredictInputs();
+      log('Existing model found: ' + d.num_inputs + ' inputs, ' + d.num_outputs + ' outputs');
+    }
+    if (d.data_loaded) {
+      log('Dataset loaded: ' + d.num_samples + ' samples');
+    }
+  } catch(e) {}
+}
+drawNetwork();
+</script>
+</body>
+</html>
