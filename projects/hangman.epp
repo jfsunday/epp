@@ -1,46 +1,37 @@
-Create a list called words.
+Note, Hangman Game with graphical UI.
 
+Note, Word list.
+Create a list called words.
 Add hut to words.
 Add eis to words.
 Add bus to words.
 Add hai to words.
 Add tor to words.
 Add kuh to words.
-
 Add baum to words.
 Add auto to words.
 Add buch to words.
 Add hund to words.
 Add mond to words.
-
 Add apfel to words.
 Add stern to words.
 Add blume to words.
 Add pferd to words.
 Add tisch to words.
-
 Add banane to words.
 Add garten to words.
 Add wasser to words.
 Add kaffee to words.
-
 Add giraffe to words.
 Add fahrrad to words.
 Add flasche to words.
 Add spiegel to words.
 Add elefant to words.
-
 Add computer to words.
 Add fussball to words.
-Add fahrzeug to words.
 Add rucksack to words.
-
 Add fernseher to words.
-Add schwester to words.
 Add kartoffel to words.
-Add krankheit to words.
-
-Add geburtstag to words.
 Add schokolade to words.
 Add wasserfall to words.
 
@@ -51,67 +42,416 @@ Let word be item the value of wordid of words.
 Let word length be the length of word.
 
 Note, Game state.
-Create a list called guessed letters.
+Create a list called guessed.
 Let lives be 6.
-Let solved be no.
+Let game over be 0.
+Let chosen letter be 0.
+Let display word be waiting.
 
-Note, Main game loop.
-While the value of lives is greater than 0 and the value of solved is equal to no,
+Note, Drawing functions.
 
-    Note, Show the word letter by letter, dot for unknown letters.
-    Say Word so far colon.
-    Let position be 1.
-    While the value of position is less than or equal to the value of word length,
-        Let current letter be the substring of word from the value of position to the value of position.
-        If the value of guessed letters contains the value of current letter,
-            Say the value of current letter.
-        Otherwise,
-            Say unknown.
-        End if.
-        Add 1 to position.
-    End while.
+Define draw gallows,
+    Set pen speed to 0.
+    Set pen size to 4.
+    Set pen color to #6c7086.
+    Note, Base line.
+    Pen up.
+    Move to negative 90 and negative 100.
+    Pen down.
+    Move to negative 10 and negative 100.
+    Note, Vertical pole.
+    Pen up.
+    Move to negative 50 and negative 100.
+    Pen down.
+    Move to negative 50 and 120.
+    Note, Top beam.
+    Move to 10 and 120.
+    Note, Support bracket.
+    Set pen size to 2.
+    Pen up.
+    Move to negative 50 and 90.
+    Pen down.
+    Move to negative 30 and 120.
+    Note, Rope.
+    Set pen size to 2.
+    Set pen color to #a6adc8.
+    Pen up.
+    Move to 10 and 120.
+    Pen down.
+    Move to 10 and 90.
+    Pen up.
+End define.
 
-    Say Lives remaining.
-    Say the value of lives.
+Define draw head,
+    Set pen speed to 0.
+    Set pen size to 3.
+    Set pen color to #f38ba8.
+    Pen up.
+    Move to 10 and 50.
+    Pen down.
+    Draw circle with radius 20.
+    Pen up.
+End define.
 
-    Ask for guess with the message Guess a letter.
-    Let guess be the lowercase of guess.
+Define draw body,
+    Set pen speed to 0.
+    Set pen size to 3.
+    Set pen color to #f38ba8.
+    Pen up.
+    Move to 10 and 50.
+    Pen down.
+    Move to 10 and negative 10.
+    Pen up.
+End define.
 
-    If the value of guessed letters contains the value of guess,
-        Say You already tried that letter.
+Define draw left arm,
+    Set pen speed to 0.
+    Set pen size to 3.
+    Set pen color to #f38ba8.
+    Pen up.
+    Move to 10 and 40.
+    Pen down.
+    Move to negative 25 and 15.
+    Pen up.
+End define.
+
+Define draw right arm,
+    Set pen speed to 0.
+    Set pen size to 3.
+    Set pen color to #f38ba8.
+    Pen up.
+    Move to 10 and 40.
+    Pen down.
+    Move to 45 and 15.
+    Pen up.
+End define.
+
+Define draw left leg,
+    Set pen speed to 0.
+    Set pen size to 3.
+    Set pen color to #f38ba8.
+    Pen up.
+    Move to 10 and negative 10.
+    Pen down.
+    Move to negative 20 and negative 55.
+    Pen up.
+End define.
+
+Define draw right leg,
+    Set pen speed to 0.
+    Set pen size to 3.
+    Set pen color to #f38ba8.
+    Pen up.
+    Move to 10 and negative 10.
+    Pen down.
+    Move to 40 and negative 55.
+    Pen up.
+End define.
+
+Define draw hangman,
+    Call draw gallows.
+    Let wrong count be 6 minus the value of lives.
+    If the value of wrong count is greater than or equal to 1,
+        Call draw head.
+    End if.
+    If the value of wrong count is greater than or equal to 2,
+        Call draw body.
+    End if.
+    If the value of wrong count is greater than or equal to 3,
+        Call draw left arm.
+    End if.
+    If the value of wrong count is greater than or equal to 4,
+        Call draw right arm.
+    End if.
+    If the value of wrong count is greater than or equal to 5,
+        Call draw left leg.
+    End if.
+    If the value of wrong count is greater than or equal to 6,
+        Call draw right leg.
+    End if.
+End define.
+
+Note, Build the display word with spaces between letters.
+
+Define build display word,
+    Let pos be 1.
+    Let current char be the substring of word from 1 to 1.
+    If the value of guessed contains the value of current char,
+        Let display word be the value of current char.
     Otherwise,
-        Add the value of guess to guessed letters.
-
-        Let guess position be the position of the value of guess in word.
-        If the value of guess position is equal to 0,
-            Say Wrong.
-            Subtract 1 from lives.
+        Let display word be underscore.
+    End if.
+    Set pos to 2.
+    While the value of pos is less than or equal to the value of word length,
+        Let current char be the substring of word from the value of pos to the value of pos.
+        If the value of guessed contains the value of current char,
+            Let display word be the value of display word plus the value of current char.
         Otherwise,
-            Say Correct.
+            Let display word be the value of display word plus underscore.
+        End if.
+        Add 1 to pos.
+    End while.
+End define.
+
+Note, Check if the word is fully solved.
+
+Define check solved,
+    Let all found be 1.
+    Let check pos be 1.
+    While the value of check pos is less than or equal to the value of word length,
+        Let check char be the substring of word from the value of check pos to the value of check pos.
+        If the value of guessed contains the value of check char,
+            Note, already found.
+        Otherwise,
+            Set all found to 0.
+        End if.
+        Add 1 to check pos.
+    End while.
+    If the value of all found is equal to 1,
+        Set game over to 2.
+    End if.
+End define.
+
+Note, Main guess handler.
+
+Define guess letter,
+    If the value of game over is greater than 0,
+        Note, game is over.
+    Otherwise,
+        Let letter be the value of chosen letter.
+        If the value of guessed contains the value of letter,
+            Note, already guessed.
+        Otherwise,
+            Add the value of letter to guessed.
+            Let found pos be the position of the value of letter in word.
+            If the value of found pos is equal to 0,
+                Subtract 1 from lives.
+                If the value of lives is equal to 0,
+                    Set game over to 1.
+                End if.
+            End if.
+            Call check solved.
+            Call show game.
         End if.
     End if.
+End define.
 
-    Note, Check whether every letter has been found.
-    Let all found be yes.
-    Let check position be 1.
-    While the value of check position is less than or equal to the value of word length,
-        Let check letter be the substring of word from the value of check position to the value of check position.
-        If the value of guessed letters contains the value of check letter,
-            Note, letter already known.
-        Otherwise,
-            Let all found be no.
-        End if.
-        Add 1 to check position.
-    End while.
-    Let solved be the value of all found.
+Note, Letter button handlers.
 
-End while.
+Define pick a,
+    Set chosen letter to a.
+    Call guess letter.
+End define.
 
-If the value of solved is equal to yes,
-    Say You win.
-Otherwise,
-    Say You lose.
-End if.
+Define pick b,
+    Set chosen letter to b.
+    Call guess letter.
+End define.
 
-Say The word was.
-Say the value of word.
+Define pick c,
+    Set chosen letter to c.
+    Call guess letter.
+End define.
+
+Define pick d,
+    Set chosen letter to d.
+    Call guess letter.
+End define.
+
+Define pick e,
+    Set chosen letter to e.
+    Call guess letter.
+End define.
+
+Define pick f,
+    Set chosen letter to f.
+    Call guess letter.
+End define.
+
+Define pick g,
+    Set chosen letter to g.
+    Call guess letter.
+End define.
+
+Define pick h,
+    Set chosen letter to h.
+    Call guess letter.
+End define.
+
+Define pick i,
+    Set chosen letter to i.
+    Call guess letter.
+End define.
+
+Define pick j,
+    Set chosen letter to j.
+    Call guess letter.
+End define.
+
+Define pick k,
+    Set chosen letter to k.
+    Call guess letter.
+End define.
+
+Define pick l,
+    Set chosen letter to l.
+    Call guess letter.
+End define.
+
+Define pick m,
+    Set chosen letter to m.
+    Call guess letter.
+End define.
+
+Define pick n,
+    Set chosen letter to n.
+    Call guess letter.
+End define.
+
+Define pick o,
+    Set chosen letter to o.
+    Call guess letter.
+End define.
+
+Define pick p,
+    Set chosen letter to p.
+    Call guess letter.
+End define.
+
+Define pick q,
+    Set chosen letter to q.
+    Call guess letter.
+End define.
+
+Define pick r,
+    Set chosen letter to r.
+    Call guess letter.
+End define.
+
+Define pick s,
+    Set chosen letter to s.
+    Call guess letter.
+End define.
+
+Define pick t,
+    Set chosen letter to t.
+    Call guess letter.
+End define.
+
+Define pick u,
+    Set chosen letter to u.
+    Call guess letter.
+End define.
+
+Define pick v,
+    Set chosen letter to v.
+    Call guess letter.
+End define.
+
+Define pick w,
+    Set chosen letter to w.
+    Call guess letter.
+End define.
+
+Define pick x,
+    Set chosen letter to x.
+    Call guess letter.
+End define.
+
+Define pick y,
+    Set chosen letter to y.
+    Call guess letter.
+End define.
+
+Define pick z,
+    Set chosen letter to z.
+    Call guess letter.
+End define.
+
+Note, New game handler.
+
+Define new game,
+    Let wordid be a random number between 1 and the value of word count.
+    Set word to item the value of wordid of words.
+    Set word length to the length of word.
+    Create a list called guessed.
+    Set lives to 6.
+    Set game over to 0.
+    Call show game.
+End define.
+
+Note, Main screen.
+
+Define show game,
+    Clear window.
+    Set title to Hangman.
+
+    Note, Draw the hangman figure.
+    Call draw hangman.
+
+    Note, Show the word.
+    Call build display word.
+    Set font size to 28.
+    Set text color to #cdd6f4.
+    Add label the value of display word.
+
+    Note, Show game status.
+    If the value of game over is equal to 1,
+        Set font size to 18.
+        Set text color to #f38ba8.
+        Add label Game Over.
+        Set font size to 14.
+        Set text color to #a6adc8.
+        Add label The word was plus the value of word.
+        Set font size to 13.
+        Set text color to #cdd6f4.
+        Add button with text New Game that calls new game.
+    Otherwise if the value of game over is equal to 2,
+        Set font size to 18.
+        Set text color to #a6e3a1.
+        Add label You won.
+        Set font size to 13.
+        Set text color to #cdd6f4.
+        Add button with text New Game that calls new game.
+    Otherwise,
+        Set font size to 11.
+        Set text color to #a6adc8.
+        Add label Lives plus the value of lives.
+
+        Note, Letter buttons.
+        Set font size to 12.
+        Set text color to #cdd6f4.
+        Add button with text A that calls pick a.
+        Add button with text B that calls pick b.
+        Add button with text C that calls pick c.
+        Add button with text D that calls pick d.
+        Add button with text E that calls pick e.
+        Add button with text F that calls pick f.
+        Add button with text G that calls pick g.
+        Add button with text H that calls pick h.
+        Add button with text I that calls pick i.
+        Add button with text J that calls pick j.
+        Add button with text K that calls pick k.
+        Add button with text L that calls pick l.
+        Add button with text M that calls pick m.
+        Add button with text N that calls pick n.
+        Add button with text O that calls pick o.
+        Add button with text P that calls pick p.
+        Add button with text Q that calls pick q.
+        Add button with text R that calls pick r.
+        Add button with text S that calls pick s.
+        Add button with text T that calls pick t.
+        Add button with text U that calls pick u.
+        Add button with text V that calls pick v.
+        Add button with text W that calls pick w.
+        Add button with text X that calls pick x.
+        Add button with text Y that calls pick y.
+        Add button with text Z that calls pick z.
+    End if.
+End define.
+
+Note, Start the game.
+Open window with title Hangman.
+Set window size to 540 by 820.
+Call show game.
+Wait for close.

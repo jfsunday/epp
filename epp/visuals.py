@@ -87,6 +87,7 @@ class Visuals:
         screen.bgcolor("#181825")
         self._turtle = turtle.RawTurtle(screen)
         self._turtle.speed(3)
+        self._turtle.hideturtle()
         self._turtle.pencolor(_DEFAULT_ACCENT)
 
     def _on_resize(self, event):
@@ -338,9 +339,21 @@ class Visuals:
         self._ensure_turtle()
         self._turtle.pendown()
 
+    def turtle_goto(self, x: int, y: int) -> None:
+        self._ensure_turtle()
+        self._turtle.goto(x, y)
+
     def turtle_set_color(self, color: str) -> None:
         self._ensure_turtle()
         self._turtle.pencolor(color)
+
+    def turtle_set_speed(self, speed: int) -> None:
+        self._ensure_turtle()
+        self._turtle.speed(speed)
+
+    def turtle_set_size(self, size: int) -> None:
+        self._ensure_turtle()
+        self._turtle.pensize(size)
 
     def turtle_circle(self, radius: int) -> None:
         self._ensure_turtle()

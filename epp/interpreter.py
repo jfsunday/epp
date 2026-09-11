@@ -416,6 +416,13 @@ class Interpreter:
         else:
             v.turtle_backward(int(amount))
 
+    def _exec_MoveToStmt(self, node: ast.MoveToStmt, env: Environment) -> None:
+        x = self._eval(node.x, env)
+        y = self._eval(node.y, env)
+        self._check_number(x, "move x", node.line)
+        self._check_number(y, "move y", node.line)
+        self._get_visuals(node.line).turtle_goto(int(x), int(y))
+
     def _exec_TurnStmt(self, node: ast.TurnStmt, env: Environment) -> None:
         degrees = self._eval(node.degrees, env)
         self._check_number(degrees, "turn degrees", node.line)
@@ -435,6 +442,16 @@ class Interpreter:
     def _exec_SetPenColorStmt(self, node: ast.SetPenColorStmt, env: Environment) -> None:
         color = format_value(self._eval(node.color, env))
         self._get_visuals(node.line).turtle_set_color(color)
+
+    def _exec_SetPenSpeedStmt(self, node: ast.SetPenSpeedStmt, env: Environment) -> None:
+        speed = self._eval(node.speed, env)
+        self._check_number(speed, "pen speed", node.line)
+        self._get_visuals(node.line).turtle_set_speed(int(speed))
+
+    def _exec_SetPenSizeStmt(self, node: ast.SetPenSizeStmt, env: Environment) -> None:
+        size = self._eval(node.size, env)
+        self._check_number(size, "pen size", node.line)
+        self._get_visuals(node.line).turtle_set_size(int(size))
 
     def _exec_DrawCircleStmt(self, node: ast.DrawCircleStmt, env: Environment) -> None:
         radius = self._eval(node.radius, env)

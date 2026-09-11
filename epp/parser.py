@@ -138,6 +138,12 @@ class Parser:
             self.advance()
             return ast.BoolLit(False, line)
 
+        # Special word literals
+        if tok.kind == TokenKind.WORD and tok.value.lower() in self._SPECIAL_WORDS:
+            val = self._SPECIAL_WORDS[tok.value.lower()]
+            self.advance()
+            return self._maybe_chain_ops(ast.StringLit(val, line), stop_words)
+
         # "not" prefix
         if self.at_word("not"):
             self.advance()
@@ -518,6 +524,11 @@ class Parser:
 
         return left
 
+    # Special word literals for characters that cannot appear in source
+    _SPECIAL_WORDS = {"underscore": "_", "colon": ":", "space": " ", "dash": "-",
+                      "exclamation": "!", "question": "?", "semicolon": ";",
+                      "at": "@", "ampersand": "&"}
+
     def _parse_operand(self, stop_words: set[str]) -> object:
         """Parse a single operand (number, bool, variable ref, or nested expression)."""
         line = self.current().line
@@ -535,6 +546,10 @@ class Parser:
         if self.at_word("no"):
             self.advance()
             return ast.BoolLit(False, line)
+        if self.current().kind == TokenKind.WORD and self.current().value.lower() in self._SPECIAL_WORDS:
+            val = self._SPECIAL_WORDS[self.current().value.lower()]
+            self.advance()
+            return ast.StringLit(val, line)
         if self.at_word("a") and self.peek(1).value.lower() == "random":
             return self.parse_value(stop_words)
         if self.at_word("the") and self.peek(1).value.lower() == "value":
@@ -774,14 +789,27 @@ class Parser:
             self.skip_period()
             return ast.SetContentTypeStmt("".join(parts), line)
 
-        # Check for "Set pen color to <color>"
+        # Check for "Set pen color/speed/size to <value>"
         if self.at_word("pen"):
             self.advance()  # pen
-            self.expect_word("color")
-            self.expect_word("to")
-            color = self.parse_value()
-            self.skip_period()
-            return ast.SetPenColorStmt(color, line)
+            if self.at_word("color"):
+                self.advance()  # color
+                self.expect_word("to")
+                color = self.parse_value()
+                self.skip_period()
+                return ast.SetPenColorStmt(color, line)
+            elif self.at_word("speed"):
+                self.advance()  # speed
+                self.expect_word("to")
+                speed = self.parse_value()
+                self.skip_period()
+                return ast.SetPenSpeedStmt(speed, line)
+            elif self.at_word("size"):
+                self.advance()  # size
+                self.expect_word("to")
+                size = self.parse_value()
+                self.skip_period()
+                return ast.SetPenSizeStmt(size, line)
 
         # Check for "Set the entry KEY in DICT to VALUE."
         if self.at_word("the") and self.peek(1).value.lower() == "entry":
@@ -1162,14 +1190,21 @@ class Parser:
         return ast.OpenWindowStmt(title, line)
 
     def _parse_move(self, line: int) -> ast.MoveStmt:
-        """Move forward/backward <n> steps."""
+        """Move forward/backward <n> steps  OR  Move to <x> and <y>."""
         self.advance()  # move
+        if self.at_word("to"):
+            self.advance()  # to
+            x = self.parse_value({"and"})
+            self.expect_word("and")
+            y = self.parse_value()
+            self.skip_period()
+            return ast.MoveToStmt(x, y, line)
         if self.at_word("forward"):
             direction = "forward"
         elif self.at_word("backward"):
             direction = "backward"
         else:
-            raise EppParseError("expected 'forward' or 'backward' after Move", line)
+            raise EppParseError("expected 'forward', 'backward', or 'to' after Move", line)
         self.advance()
         amount = self.parse_value({"steps"})
         if self.at_word("steps"):

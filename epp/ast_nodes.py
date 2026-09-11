@@ -237,6 +237,13 @@ class MoveStmt:
 
 
 @dataclass
+class MoveToStmt:
+    x: Any
+    y: Any
+    line: int
+
+
+@dataclass
 class TurnStmt:
     direction: str  # left, right
     degrees: Any
@@ -252,6 +259,18 @@ class PenStmt:
 @dataclass
 class SetPenColorStmt:
     color: Any
+    line: int
+
+
+@dataclass
+class SetPenSpeedStmt:
+    speed: Any
+    line: int
+
+
+@dataclass
+class SetPenSizeStmt:
+    size: Any
     line: int
 
 
