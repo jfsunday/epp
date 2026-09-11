@@ -316,8 +316,10 @@ class Interpreter:
 
     def _eval_LengthOfExpr(self, node: ast.LengthOfExpr, env: Environment) -> float:
         val = env.get(node.name, node.line)
+        if isinstance(val, str):
+            return float(len(val))
         if not isinstance(val, (list, dict)):
-            raise EppRuntimeError(f"'{node.name}' is not a list or dictionary", node.line)
+            raise EppRuntimeError(f"'{node.name}' is not a list, dictionary, or string", node.line)
         return float(len(val))
 
     def _eval_KeysOfExpr(self, node: ast.KeysOfExpr, env: Environment) -> list:

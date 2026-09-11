@@ -1,0 +1,117 @@
+Create a list called words.
+
+Add hut to words.
+Add eis to words.
+Add bus to words.
+Add hai to words.
+Add tor to words.
+Add kuh to words.
+
+Add baum to words.
+Add auto to words.
+Add buch to words.
+Add hund to words.
+Add mond to words.
+
+Add apfel to words.
+Add stern to words.
+Add blume to words.
+Add pferd to words.
+Add tisch to words.
+
+Add banane to words.
+Add garten to words.
+Add wasser to words.
+Add kaffee to words.
+
+Add giraffe to words.
+Add fahrrad to words.
+Add flasche to words.
+Add spiegel to words.
+Add elefant to words.
+
+Add computer to words.
+Add fussball to words.
+Add fahrzeug to words.
+Add rucksack to words.
+
+Add fernseher to words.
+Add schwester to words.
+Add kartoffel to words.
+Add krankheit to words.
+
+Add geburtstag to words.
+Add schokolade to words.
+Add wasserfall to words.
+
+Note, Pick a random word.
+Let word count be the length of words.
+Let wordid be a random number between 1 and the value of word count.
+Let word be item the value of wordid of words.
+Let word length be the length of word.
+
+Note, Game state.
+Create a list called guessed letters.
+Let lives be 6.
+Let solved be no.
+
+Note, Main game loop.
+While the value of lives is greater than 0 and the value of solved is equal to no,
+
+    Note, Show the word letter by letter, dot for unknown letters.
+    Say Word so far colon.
+    Let position be 1.
+    While the value of position is less than or equal to the value of word length,
+        Let current letter be the substring of word from the value of position to the value of position.
+        If the value of guessed letters contains the value of current letter,
+            Say the value of current letter.
+        Otherwise,
+            Say unknown.
+        End if.
+        Add 1 to position.
+    End while.
+
+    Say Lives remaining.
+    Say the value of lives.
+
+    Ask for guess with the message Guess a letter.
+    Let guess be the lowercase of guess.
+
+    If the value of guessed letters contains the value of guess,
+        Say You already tried that letter.
+    Otherwise,
+        Add the value of guess to guessed letters.
+
+        Let guess position be the position of the value of guess in word.
+        If the value of guess position is equal to 0,
+            Say Wrong.
+            Subtract 1 from lives.
+        Otherwise,
+            Say Correct.
+        End if.
+    End if.
+
+    Note, Check whether every letter has been found.
+    Let all found be yes.
+    Let check position be 1.
+    While the value of check position is less than or equal to the value of word length,
+        Let check letter be the substring of word from the value of check position to the value of check position.
+        If the value of guessed letters contains the value of check letter,
+            Note, letter already known.
+        Otherwise,
+            Let all found be no.
+        End if.
+        Add 1 to check position.
+    End while.
+    Let solved be the value of all found.
+
+End while.
+
+If the value of solved is equal to yes,
+    Say You win.
+Otherwise,
+    Say You lose.
+End if.
+
+Say The word was.
+Say the value of word.
