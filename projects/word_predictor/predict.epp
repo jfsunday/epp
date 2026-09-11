@@ -1,14 +1,29 @@
-Note, Word Predictor Terminal Version.
+Note, Word Predictor MLP Terminal Version.
 
 Note, Global state.
 Let vocab sz be 0.
-Create a list called idx to word.
-Create a dictionary called word to idx.
-Create a list called weights.
+Let ctx be 2.
+Let embed dim be 4.
+Let hidden dim be 8.
+Let input dim be 0.
+Create a list called vocab words.
+Create a dictionary called vocab map.
+Create a list called embed wts.
+Create a list called hidden wts.
+Create a list called hidden bias.
+Create a list called out wts.
+Create a list called out bias.
+Create a list called ctx tokens.
+Create a list called input vec.
+Create a list called hidden act.
+Create a list called pre act.
+Create a list called logits.
+Create a list called probs.
 
 Note, Load model from database.
 Define load model,
     Open a database called word predictor.
+    Note, Load config.
     Select from config and store in cfg rows.
     Let ci be 1.
     While the value of ci is less than or equal to the length of cfg rows,
@@ -18,14 +33,30 @@ Define load model,
         If the value of k is equal to vocabsize,
             Set vocab sz to the number of v.
         End if.
+        If the value of k is equal to context,
+            Set ctx to the number of v.
+        End if.
+        If the value of k is equal to embeddim,
+            Set embed dim to the number of v.
+        End if.
+        If the value of k is equal to hiddendim,
+            Set hidden dim to the number of v.
+        End if.
+        If the value of k is equal to inputdim,
+            Set input dim to the number of v.
+        End if.
         Add 1 to ci.
     End while.
+    If the value of input dim is equal to 0,
+        Set input dim to the value of ctx times embed dim.
+    End if.
+    Note, Load vocabulary.
     Select from vocab and store in vocab rows.
-    Create a list called new idx to word.
-    Create a dictionary called new word to idx.
+    Create a list called nv words.
+    Create a dictionary called nv map.
     Let si be 1.
     While the value of si is less than or equal to vocab sz,
-        Add placeholder to new idx to word.
+        Add placeholder to nv words.
         Add 1 to si.
     End while.
     Let vi be 1.
@@ -34,64 +65,203 @@ Define load model,
         Let w be the entry word in row.
         Let raw idx be the entry idx in row.
         Let idx be the number of raw idx.
-        Set item idx of new idx to word to the value of w.
-        Set the entry the value of w in new word to idx to the value of idx.
+        Set item idx of nv words to the value of w.
+        Set the entry the value of w in nv map to the value of idx.
         Add 1 to vi.
     End while.
-    Set idx to word to the value of new idx to word.
-    Set word to idx to the value of new word to idx.
-    Select from weights and store in w rows.
-    Create a list called new weights.
-    Let total w be the value of vocab sz times vocab sz.
+    Set vocab words to the value of nv words.
+    Set vocab map to the value of nv map.
+    Note, Load embedding weights.
+    Select from embeddings and store in e rows.
+    Let total e be the value of vocab sz times embed dim.
+    Create a list called ne.
     Let si be 1.
-    While the value of si is less than or equal to total w,
-        Add 0 to new weights.
+    While the value of si is less than or equal to total e,
+        Add 0 to ne.
         Add 1 to si.
     End while.
     Let wi be 1.
-    While the value of wi is less than or equal to the length of w rows,
-        Let row be item wi of w rows.
+    While the value of wi is less than or equal to the length of e rows,
+        Let row be item wi of e rows.
         Let raw pos be the entry pos in row.
         Let pos be the number of raw pos.
         Let raw val be the entry val in row.
         Let val be the number of raw val.
-        Set item pos of new weights to the value of val.
+        Set item pos of ne to the value of val.
         Add 1 to wi.
     End while.
-    Set weights to the value of new weights.
+    Set embed wts to the value of ne.
+    Note, Load hidden weights.
+    Select from hiddenw and store in hw rows.
+    Let total h be the value of hidden dim times input dim.
+    Create a list called nhw.
+    Let si be 1.
+    While the value of si is less than or equal to total h,
+        Add 0 to nhw.
+        Add 1 to si.
+    End while.
+    Let wi be 1.
+    While the value of wi is less than or equal to the length of hw rows,
+        Let row be item wi of hw rows.
+        Let raw pos be the entry pos in row.
+        Let pos be the number of raw pos.
+        Let raw val be the entry val in row.
+        Let val be the number of raw val.
+        Set item pos of nhw to the value of val.
+        Add 1 to wi.
+    End while.
+    Set hidden wts to the value of nhw.
+    Note, Load hidden bias.
+    Select from hiddenb and store in hb rows.
+    Create a list called nhb.
+    Let si be 1.
+    While the value of si is less than or equal to hidden dim,
+        Add 0 to nhb.
+        Add 1 to si.
+    End while.
+    Let wi be 1.
+    While the value of wi is less than or equal to the length of hb rows,
+        Let row be item wi of hb rows.
+        Let raw pos be the entry pos in row.
+        Let pos be the number of raw pos.
+        Let raw val be the entry val in row.
+        Let val be the number of raw val.
+        Set item pos of nhb to the value of val.
+        Add 1 to wi.
+    End while.
+    Set hidden bias to the value of nhb.
+    Note, Load output weights.
+    Select from outputw and store in ow rows.
+    Let total o be the value of vocab sz times hidden dim.
+    Create a list called now.
+    Let si be 1.
+    While the value of si is less than or equal to total o,
+        Add 0 to now.
+        Add 1 to si.
+    End while.
+    Let wi be 1.
+    While the value of wi is less than or equal to the length of ow rows,
+        Let row be item wi of ow rows.
+        Let raw pos be the entry pos in row.
+        Let pos be the number of raw pos.
+        Let raw val be the entry val in row.
+        Let val be the number of raw val.
+        Set item pos of now to the value of val.
+        Add 1 to wi.
+    End while.
+    Set out wts to the value of now.
+    Note, Load output bias.
+    Select from outputb and store in ob rows.
+    Create a list called nob.
+    Let si be 1.
+    While the value of si is less than or equal to vocab sz,
+        Add 0 to nob.
+        Add 1 to si.
+    End while.
+    Let wi be 1.
+    While the value of wi is less than or equal to the length of ob rows,
+        Let row be item wi of ob rows.
+        Let raw pos be the entry pos in row.
+        Let pos be the number of raw pos.
+        Let raw val be the entry val in row.
+        Let val be the number of raw val.
+        Set item pos of nob to the value of val.
+        Add 1 to wi.
+    End while.
+    Set out bias to the value of nob.
     Close the database.
     Say Model loaded.
 End define.
 
-Note, Predict next word given current word index.
-Define predict next that takes from idx,
-    Create a list called logits.
-    Let row offset be the value of from idx minus 1 times vocab sz.
-    Let ki be 1.
-    While the value of ki is less than or equal to vocab sz,
-        Let widx be the value of row offset plus ki.
-        Let logit be item widx of weights.
-        Add logit to logits.
-        Add 1 to ki.
+Note, Forward pass using global ctx tokens.
+Define do forward,
+    Note, Embedding lookup.
+    Create a list called niv.
+    Let ci be 1.
+    While the value of ci is less than or equal to ctx,
+        Let tok be item ci of ctx tokens.
+        Let tokmo be the value of tok minus 1.
+        Let emb off be the value of tokmo times embed dim.
+        Let ei be 1.
+        While the value of ei is less than or equal to embed dim,
+            Let wpos be the value of emb off plus ei.
+            Let val be item wpos of embed wts.
+            Add val to niv.
+            Add 1 to ei.
+        End while.
+        Add 1 to ci.
     End while.
-    Let max logit be the max of logits.
-    Create a list called probs.
+    Set input vec to the value of niv.
+    Note, Hidden layer.
+    Create a list called nha.
+    Let hi be 1.
+    While the value of hi is less than or equal to hidden dim,
+        Let acc be 0.
+        Let ii be 1.
+        While the value of ii is less than or equal to input dim,
+            Let himo be the value of hi minus 1.
+            Let wpos be the value of himo times input dim plus ii.
+            Let hw be item wpos of hidden wts.
+            Let iv be item ii of niv.
+            Let prod be the value of hw times iv.
+            Set acc to the value of acc plus prod.
+            Add 1 to ii.
+        End while.
+        Let hb be item hi of hidden bias.
+        Set acc to the value of acc plus hb.
+        If the value of acc is less than 0,
+            Set acc to 0.
+        End if.
+        Add acc to nha.
+        Add 1 to hi.
+    End while.
+    Set hidden act to the value of nha.
+    Note, Output layer.
+    Create a list called nlogits.
+    Let oi be 1.
+    While the value of oi is less than or equal to vocab sz,
+        Let acc be 0.
+        Let hi be 1.
+        While the value of hi is less than or equal to hidden dim,
+            Let oimo be the value of oi minus 1.
+            Let wpos be the value of oimo times hidden dim plus hi.
+            Let ow be item wpos of out wts.
+            Let ha be item hi of nha.
+            Let prod be the value of ow times ha.
+            Set acc to the value of acc plus prod.
+            Add 1 to hi.
+        End while.
+        Let ob be item oi of out bias.
+        Set acc to the value of acc plus ob.
+        Add acc to nlogits.
+        Add 1 to oi.
+    End while.
+    Set logits to the value of nlogits.
+    Note, Softmax.
+    Let max logit be the max of nlogits.
+    Create a list called nprobs.
     Let exp total be 0.
     Let ki be 1.
     While the value of ki is less than or equal to vocab sz,
-        Let logit be item ki of logits.
+        Let logit be item ki of nlogits.
         Let shifted be the value of logit minus max logit.
         Let ex be the exponential of shifted.
-        Add ex to probs.
+        Add ex to nprobs.
         Set exp total to the value of exp total plus ex.
         Add 1 to ki.
     End while.
     Let ki be 1.
     While the value of ki is less than or equal to vocab sz,
-        Let p be item ki of probs.
-        Set item ki of probs to the value of p divided by exp total.
+        Let p be item ki of nprobs.
+        Let normed be the value of p divided by exp total.
+        Set item ki of nprobs to the value of normed.
         Add 1 to ki.
     End while.
+    Set probs to the value of nprobs.
+End define.
+
+Note, Predict next token using argmax.
+Define predict next,
     Let best idx be 1.
     Let best prob be item 1 of probs.
     Let ki be 2.
@@ -110,21 +280,40 @@ Note, Main program.
 Call load model.
 Ask for seed word with the message Enter a starting word.
 Let seed lower be the lowercase of seed word.
-If not the value of word to idx has the entry the value of seed lower,
+If not the value of vocab map has the entry the value of seed lower,
     Say Unknown word.
     Return 0.
 End if.
 Ask for count with the message How many words to generate.
 Let max words be the number of count.
-Let current idx be the entry the value of seed lower in word to idx.
+Note, Initialize context with seed word repeated.
+Let seed idx be the entry the value of seed lower in vocab map.
+Create a list called history.
+Let fi be 1.
+While the value of fi is less than or equal to ctx,
+    Add seed idx to history.
+    Add 1 to fi.
+End while.
 Create a list called result words.
 Add the value of seed lower to result words.
 Let wi be 1.
 While the value of wi is less than or equal to max words,
-    Call predict next with the value of current idx and store the result in next idx.
-    Let next word be item next idx of idx to word.
+    Note, Build context from last ctx tokens in history.
+    Create a list called nct.
+    Let hlen be the length of history.
+    Let ci be 1.
+    While the value of ci is less than or equal to ctx,
+        Let off be the value of hlen minus ctx plus ci.
+        Let tid be item off of history.
+        Add tid to nct.
+        Add 1 to ci.
+    End while.
+    Set ctx tokens to the value of nct.
+    Call do forward.
+    Call predict next and store the result in next idx.
+    Let next word be item next idx of vocab words.
     Add the value of next word to result words.
-    Set current idx to the value of next idx.
+    Add next idx to history.
     Add 1 to wi.
 End while.
 Let output be item 1 of result words.

@@ -1,218 +1,816 @@
-Note, Word Predictor Training.
+Note, Word Predictor MLP Training.
 
-Note, Global state.
-Let vocab size be 0.
-Let trained be no.
-Let epoch loss be 0.
-Let total epochs be 0.
-Create a list called words.
-Create a list called idx to word.
-Create a dictionary called word to idx.
-Create a list called weights.
+Note, Settings with defaults.
+Let vocab limit be 50.
+Let whole tok be 1.
+Let min pair cnt be 1.
+Let ctx be 2.
+Let embed dim be 4.
+Let hidden dim be 8.
+Let hidden lyrs be 1.
+Let num steps be 100.
+Let batch sz be 1.
+Let halt mode be steps.
+Let learn rate be 0 point 1.
+Let target loss val be 0 point 5.
+Let rnd dec be 4.
+Let sem flag be 0.
+Let sem anchor be the.
+Let sem win be 2.
+Let sem scale be 0 point 1.
+Let target coh be 0.
+Let coh wt be 0.
+Let space tok be 0.
+
+Note, Data.
+Create a list called vocab words.
+Create a dictionary called vocab map.
+Let vocab sz be 0.
+Create a list called token ids.
 Let training text be none.
 
-Note, Build vocabulary from the words list.
+Note, Model weights.
+Create a list called embed wts.
+Create a list called hidden wts.
+Create a list called hidden bias.
+Create a list called out wts.
+Create a list called out bias.
+
+Note, Forward cache.
+Create a list called input vec.
+Create a list called hidden act.
+Create a list called pre act.
+Create a list called logits.
+Create a list called probs.
+Create a list called ctx tokens.
+
+Note, State.
+Let input dim be 0.
+Let trained be no.
+Let epoch loss be 0.
+Let coherence val be 0.
+Let current step be 0.
+
+Note, Build vocabulary from training text.
 Define build vocab,
-    Set vocab size to 0.
-    Create a list called new idx to word.
-    Create a dictionary called new word to idx.
-    Let wi be 1.
-    While the value of wi is less than or equal to the length of words,
-        Let w be item wi of words.
-        If not the value of new word to idx has the entry the value of w,
-            Add 1 to vocab size.
-            Add w to new idx to word.
-            Set the entry the value of w in new word to idx to the value of vocab size.
+    Create a list called raw tokens.
+    If the value of whole tok is equal to 1,
+        Set raw tokens to the split of training text by space.
+    End if.
+    If the value of whole tok is equal to 0,
+        Let tlen be the length of training text.
+        Let ci be 1.
+        While the value of ci is less than or equal to tlen,
+            Let ch be the substring of training text from the value of ci to the value of ci.
+            Add ch to raw tokens.
+            Add 1 to ci.
+        End while.
+    End if.
+    Note, Handle space token insertion for word mode.
+    If the value of space tok is equal to 1,
+        If the value of whole tok is equal to 1,
+            Create a list called spaced tokens.
+            Let ri be 1.
+            While the value of ri is less than or equal to the length of raw tokens,
+                Let tok be item ri of raw tokens.
+                Add tok to spaced tokens.
+                Let rlen be the length of raw tokens.
+                If the value of ri is less than rlen,
+                    Add space to spaced tokens.
+                End if.
+                Add 1 to ri.
+            End while.
+            Set raw tokens to the value of spaced tokens.
         End if.
-        Add 1 to wi.
-    End while.
-    Set idx to word to the value of new idx to word.
-    Set word to idx to the value of new word to idx.
-End define.
-
-Note, Initialize weights with small random values.
-Define init weights,
-    Create a list called new weights.
-    Let total be the value of vocab size times vocab size.
-    Let wi be 0.
-    While the value of wi is less than total,
-        Let w be a random decimal between negative 0 point 1 and 0 point 1.
-        Add w to new weights.
-        Add 1 to wi.
-    End while.
-    Set weights to the value of new weights.
-End define.
-
-Note, Train one epoch and return average loss.
-Define train one epoch that takes lr,
-    Let total loss be 0.
-    Let pair count be 0.
-    Let ti be 1.
-    Let num words be the length of words.
-    While the value of ti is less than num words,
-        Let current word be item ti of words.
-        Let next ti be the value of ti plus 1.
-        Let target word be item next ti of words.
-        Let from idx be the entry the value of current word in word to idx.
-        Let to idx be the entry the value of target word in word to idx.
-
-        Note, Forward pass, extract logits row.
-        Create a list called logits.
-        Let row offset be the value of from idx minus 1 times vocab size.
-        Let ki be 1.
-        While the value of ki is less than or equal to vocab size,
-            Let widx be the value of row offset plus ki.
-            Let logit be item widx of weights.
-            Add logit to logits.
-            Add 1 to ki.
-        End while.
-
-        Note, Softmax with numerical stability.
-        Let max logit be the max of logits.
-        Create a list called probs.
-        Let exp total be 0.
-        Let ki be 1.
-        While the value of ki is less than or equal to vocab size,
-            Let logit be item ki of logits.
-            Let shifted be the value of logit minus max logit.
-            Let ex be the exponential of shifted.
-            Add ex to probs.
-            Set exp total to the value of exp total plus ex.
-            Add 1 to ki.
-        End while.
-        Let ki be 1.
-        While the value of ki is less than or equal to vocab size,
-            Let p be item ki of probs.
-            Set item ki of probs to the value of p divided by exp total.
-            Add 1 to ki.
-        End while.
-
-        Note, Cross entropy loss.
-        Let target prob be item to idx of probs.
-        If the value of target prob is less than 0 point 0000001,
-            Set target prob to 0 point 0000001.
+    End if.
+    Note, Count token frequencies.
+    Create a dictionary called freq dict.
+    Let ri be 1.
+    While the value of ri is less than or equal to the length of raw tokens,
+        Let tok be item ri of raw tokens.
+        If the value of freq dict has the entry the value of tok,
+            Let old cnt be the entry the value of tok in freq dict.
+            Let new cnt be the value of old cnt plus 1.
+            Set the entry the value of tok in freq dict to the value of new cnt.
+        Otherwise,
+            Set the entry the value of tok in freq dict to 1.
         End if.
-        Let loss be the logarithm of the value of target prob.
-        Set loss to the value of loss times negative 1.
-        Set total loss to the value of total loss plus loss.
-        Add 1 to pair count.
-
-        Note, Backward pass, update weights for this row.
-        Let ki be 1.
-        While the value of ki is less than or equal to vocab size,
-            Let grad be item ki of probs.
-            If the value of ki is equal to to idx,
-                Set grad to the value of grad minus 1.
+        Add 1 to ri.
+    End while.
+    Note, Build vocabulary from frequent tokens.
+    Set vocab sz to 0.
+    Create a list called nv words.
+    Create a dictionary called nv map.
+    Let freq keys be the keys of freq dict.
+    Let ki be 1.
+    While the value of ki is less than or equal to the length of freq keys,
+        Let tok be item ki of freq keys.
+        Let cnt be the entry the value of tok in freq dict.
+        If the value of cnt is greater than or equal to min pair cnt,
+            If the value of vocab sz is less than vocab limit,
+                Add 1 to vocab sz.
+                Add tok to nv words.
+                Set the entry the value of tok in nv map to the value of vocab sz.
             End if.
-            Let widx be the value of row offset plus ki.
-            Let old w be item widx of weights.
-            Let step be the value of grad times lr.
-            Set item widx of weights to the value of old w minus step.
-            Add 1 to ki.
-        End while.
+        End if.
+        Add 1 to ki.
+    End while.
+    Set vocab words to the value of nv words.
+    Set vocab map to the value of nv map.
+    Note, Build token id sequence.
+    Create a list called new tids.
+    Let ri be 1.
+    While the value of ri is less than or equal to the length of raw tokens,
+        Let tok be item ri of raw tokens.
+        If the value of nv map has the entry the value of tok,
+            Let tid be the entry the value of tok in nv map.
+            Add tid to new tids.
+        End if.
+        Add 1 to ri.
+    End while.
+    Set token ids to the value of new tids.
+End define.
 
+Note, Initialize model weights with random values.
+Define init model,
+    Set input dim to the value of ctx times embed dim.
+    Note, Embedding matrix vocab sz x embed dim.
+    Create a list called ne.
+    Let total e be the value of vocab sz times embed dim.
+    Let wi be 1.
+    While the value of wi is less than or equal to total e,
+        Let w be a random decimal between negative 0 point 1 and 0 point 1.
+        Add w to ne.
+        Add 1 to wi.
+    End while.
+    Set embed wts to the value of ne.
+    Note, Hidden weights hidden dim x input dim.
+    Create a list called nhw.
+    Let total h be the value of hidden dim times input dim.
+    Let wi be 1.
+    While the value of wi is less than or equal to total h,
+        Let w be a random decimal between negative 0 point 1 and 0 point 1.
+        Add w to nhw.
+        Add 1 to wi.
+    End while.
+    Set hidden wts to the value of nhw.
+    Note, Hidden bias.
+    Create a list called nhb.
+    Let wi be 1.
+    While the value of wi is less than or equal to hidden dim,
+        Add 0 to nhb.
+        Add 1 to wi.
+    End while.
+    Set hidden bias to the value of nhb.
+    Note, Output weights vocab sz x hidden dim.
+    Create a list called now.
+    Let total o be the value of vocab sz times hidden dim.
+    Let wi be 1.
+    While the value of wi is less than or equal to total o,
+        Let w be a random decimal between negative 0 point 1 and 0 point 1.
+        Add w to now.
+        Add 1 to wi.
+    End while.
+    Set out wts to the value of now.
+    Note, Output bias.
+    Create a list called nob.
+    Let wi be 1.
+    While the value of wi is less than or equal to vocab sz,
+        Add 0 to nob.
+        Add 1 to wi.
+    End while.
+    Set out bias to the value of nob.
+End define.
+
+Note, Semantic embedding initialization.
+Define do semantic init,
+    Create a dictionary called anchor map.
+    If not the value of vocab map has the entry the value of sem anchor,
+        Return 0.
+    End if.
+    Let anchor idx be the entry the value of sem anchor in vocab map.
+    Note, Count co occurrences of each word with anchor within window.
+    Let num toks be the length of token ids.
+    Let ti be 1.
+    While the value of ti is less than or equal to num toks,
+        Let tid be item ti of token ids.
+        If the value of tid is equal to anchor idx,
+            Let lo be the value of ti minus sem win.
+            If the value of lo is less than 1,
+                Set lo to 1.
+            End if.
+            Let hi be the value of ti plus sem win.
+            If the value of hi is greater than num toks,
+                Set hi to the value of num toks.
+            End if.
+            Let ni be the value of lo.
+            While the value of ni is less than or equal to hi,
+                If the value of ni is not equal to ti,
+                    Let ntid be item ni of token ids.
+                    Let ntid key be the value of ntid.
+                    If the value of anchor map has the entry the value of ntid key,
+                        Let old val be the entry the value of ntid key in anchor map.
+                        Let nval be the value of old val plus 1.
+                        Set the entry the value of ntid key in anchor map to the value of nval.
+                    Otherwise,
+                        Set the entry the value of ntid key in anchor map to 1.
+                    End if.
+                End if.
+                Add 1 to ni.
+            End while.
+        End if.
         Add 1 to ti.
     End while.
-
-    If the value of pair count is greater than 0,
-        Set epoch loss to the value of total loss divided by pair count.
-    End if.
-    Return the value of epoch loss.
-End define.
-
-Note, Save model to database.
-Define handle save,
-    Open a database called word predictor.
-    Create a table called vocab with columns word and idx.
+    Note, Apply co occurrence info to embeddings.
     Let vi be 1.
-    While the value of vi is less than or equal to vocab size,
-        Let w be item vi of idx to word.
-        Insert into vocab the values the value of w and the value of vi.
+    While the value of vi is less than or equal to vocab sz,
+        Let vi key be the value of vi.
+        Let cooc be 0.
+        If the value of anchor map has the entry the value of vi key,
+            Set cooc to the entry the value of vi key in anchor map.
+        End if.
+        If the value of cooc is greater than 0,
+            Let ei be 1.
+            While the value of ei is less than or equal to embed dim,
+                Let vimo be the value of vi minus 1.
+                Let epos be the value of vimo times embed dim plus ei.
+                Let old e be item epos of embed wts.
+                Let bump be the value of cooc times sem scale divided by embed dim.
+                Let new e be the value of old e plus bump.
+                Set item epos of embed wts to the value of new e.
+                Add 1 to ei.
+            End while.
+        End if.
         Add 1 to vi.
     End while.
-    Create a table called weights with columns pos and val.
-    Let total be the value of vocab size times vocab size.
-    Let wi be 1.
-    While the value of wi is less than or equal to total,
-        Let w be item wi of weights.
-        Insert into weights the values the value of wi and the value of w.
-        Add 1 to wi.
+End define.
+
+Note, Forward pass using global ctx tokens.
+Define do forward,
+    Note, Embedding lookup and concatenate.
+    Create a list called niv.
+    Let ci be 1.
+    While the value of ci is less than or equal to ctx,
+        Let tok be item ci of ctx tokens.
+        Let tokmo be the value of tok minus 1.
+        Let emb off be the value of tokmo times embed dim.
+        Let ei be 1.
+        While the value of ei is less than or equal to embed dim,
+            Let wpos be the value of emb off plus ei.
+            Let val be item wpos of embed wts.
+            Add val to niv.
+            Add 1 to ei.
+        End while.
+        Add 1 to ci.
     End while.
-    Create a table called config with columns key and val.
-    Insert into config the values vocabsize and the value of vocab size.
-    Insert into config the values epochs and the value of total epochs.
-    Close the database.
-    Set trained to yes.
-    Say Model saved to database.
-    Call show ui.
+    Set input vec to the value of niv.
+    Note, Hidden layer matmul plus bias plus ReLU.
+    Create a list called nha.
+    Create a list called npa.
+    Let hi be 1.
+    While the value of hi is less than or equal to hidden dim,
+        Let acc be 0.
+        Let ii be 1.
+        While the value of ii is less than or equal to input dim,
+            Let himo be the value of hi minus 1.
+            Let wpos be the value of himo times input dim plus ii.
+            Let hw be item wpos of hidden wts.
+            Let iv be item ii of niv.
+            Let prod be the value of hw times iv.
+            Set acc to the value of acc plus prod.
+            Add 1 to ii.
+        End while.
+        Let hb be item hi of hidden bias.
+        Set acc to the value of acc plus hb.
+        Add acc to npa.
+        If the value of acc is less than 0,
+            Set acc to 0.
+        End if.
+        Add acc to nha.
+        Add 1 to hi.
+    End while.
+    Set hidden act to the value of nha.
+    Set pre act to the value of npa.
+    Note, Output layer matmul plus bias.
+    Create a list called nlogits.
+    Let oi be 1.
+    While the value of oi is less than or equal to vocab sz,
+        Let acc be 0.
+        Let hi be 1.
+        While the value of hi is less than or equal to hidden dim,
+            Let oimo be the value of oi minus 1.
+            Let wpos be the value of oimo times hidden dim plus hi.
+            Let ow be item wpos of out wts.
+            Let ha be item hi of nha.
+            Let prod be the value of ow times ha.
+            Set acc to the value of acc plus prod.
+            Add 1 to hi.
+        End while.
+        Let ob be item oi of out bias.
+        Set acc to the value of acc plus ob.
+        Add acc to nlogits.
+        Add 1 to oi.
+    End while.
+    Set logits to the value of nlogits.
+    Note, Softmax with numerical stability.
+    Let max logit be the max of nlogits.
+    Create a list called nprobs.
+    Let exp total be 0.
+    Let ki be 1.
+    While the value of ki is less than or equal to vocab sz,
+        Let logit be item ki of nlogits.
+        Let shifted be the value of logit minus max logit.
+        Let ex be the exponential of shifted.
+        Add ex to nprobs.
+        Set exp total to the value of exp total plus ex.
+        Add 1 to ki.
+    End while.
+    Let ki be 1.
+    While the value of ki is less than or equal to vocab sz,
+        Let p be item ki of nprobs.
+        Let normed be the value of p divided by exp total.
+        Set item ki of nprobs to the value of normed.
+        Add 1 to ki.
+    End while.
+    Set probs to the value of nprobs.
 End define.
 
-Note, Load training text from file.
-Define handle load file,
-    Let filepath be the text box filepath.
-    Read the file the value of filepath and store it in content.
-    Set training text to the value of content.
-    Say File loaded.
-    Call show ui.
+Note, Backward pass with weight updates.
+Define do backward that takes tgt idx and lr,
+    Note, Output gradient probs minus one hot target.
+    Create a list called d out.
+    Let oi be 1.
+    While the value of oi is less than or equal to vocab sz,
+        Let p be item oi of probs.
+        If the value of oi is equal to tgt idx,
+            Let grad be the value of p minus 1.
+        Otherwise,
+            Let grad be the value of p.
+        End if.
+        Add grad to d out.
+        Add 1 to oi.
+    End while.
+    Note, Update output weights and bias.
+    Let oi be 1.
+    While the value of oi is less than or equal to vocab sz,
+        Let dg be item oi of d out.
+        Let hi be 1.
+        While the value of hi is less than or equal to hidden dim,
+            Let oimo be the value of oi minus 1.
+            Let wpos be the value of oimo times hidden dim plus hi.
+            Let old w be item wpos of out wts.
+            Let ha be item hi of hidden act.
+            Let grad step be the value of dg times ha times lr.
+            Let new w be the value of old w minus grad step.
+            Set item wpos of out wts to the value of new w.
+            Add 1 to hi.
+        End while.
+        Let old b be item oi of out bias.
+        Let b step be the value of dg times lr.
+        Let new b be the value of old b minus b step.
+        Set item oi of out bias to the value of new b.
+        Add 1 to oi.
+    End while.
+    Note, Backprop to hidden and update hidden weights and embeddings.
+    Create a list called d emb.
+    Let total e be the value of ctx times embed dim.
+    Let di be 1.
+    While the value of di is less than or equal to total e,
+        Add 0 to d emb.
+        Add 1 to di.
+    End while.
+    Let hi be 1.
+    While the value of hi is less than or equal to hidden dim,
+        Let dh be 0.
+        Let oi be 1.
+        While the value of oi is less than or equal to vocab sz,
+            Let dg be item oi of d out.
+            Let oimo be the value of oi minus 1.
+            Let wpos be the value of oimo times hidden dim plus hi.
+            Let ow be item wpos of out wts.
+            Let ctr be the value of ow times dg.
+            Set dh to the value of dh plus ctr.
+            Add 1 to oi.
+        End while.
+        Note, ReLU derivative.
+        Let pa be item hi of pre act.
+        If the value of pa is less than or equal to 0,
+            Set dh to 0.
+        End if.
+        Note, Update hidden weights.
+        Let ii be 1.
+        While the value of ii is less than or equal to input dim,
+            Let himo be the value of hi minus 1.
+            Let wpos be the value of himo times input dim plus ii.
+            Let old w be item wpos of hidden wts.
+            Let iv be item ii of input vec.
+            Let grad step be the value of dh times iv times lr.
+            Let new w be the value of old w minus grad step.
+            Set item wpos of hidden wts to the value of new w.
+            Add 1 to ii.
+        End while.
+        Note, Update hidden bias.
+        Let old b be item hi of hidden bias.
+        Let hb step be the value of dh times lr.
+        Let new b be the value of old b minus hb step.
+        Set item hi of hidden bias to the value of new b.
+        Note, Accumulate embedding gradient.
+        Let ii be 1.
+        While the value of ii is less than or equal to input dim,
+            Let himo be the value of hi minus 1.
+            Let wpos be the value of himo times input dim plus ii.
+            Let hw be item wpos of hidden wts.
+            Let ctr be the value of hw times dh.
+            Let old de be item ii of d emb.
+            Let new de be the value of old de plus ctr.
+            Set item ii of d emb to the value of new de.
+            Add 1 to ii.
+        End while.
+        Add 1 to hi.
+    End while.
+    Note, Update embeddings from accumulated gradient.
+    Let ci be 1.
+    While the value of ci is less than or equal to ctx,
+        Let tok be item ci of ctx tokens.
+        Let tokmo be the value of tok minus 1.
+        Let emb off be the value of tokmo times embed dim.
+        Let ei be 1.
+        While the value of ei is less than or equal to embed dim,
+            Let cimo be the value of ci minus 1.
+            Let iv idx be the value of cimo times embed dim plus ei.
+            Let de be item iv idx of d emb.
+            Let epos be the value of emb off plus ei.
+            Let old e be item epos of embed wts.
+            Let e step be the value of de times lr.
+            Let new e be the value of old e minus e step.
+            Set item epos of embed wts to the value of new e.
+            Add 1 to ei.
+        End while.
+        Add 1 to ci.
+    End while.
 End define.
 
-Note, Start training.
+Note, Compute prediction coherence.
+Define compute coherence,
+    Let num toks be the length of token ids.
+    Let min pos be the value of ctx plus 1.
+    If the value of num toks is less than or equal to min pos,
+        Set coherence val to 0.
+        Return 0.
+    End if.
+    Let matches be 0.
+    Let checks be 0.
+    Let ti be the value of min pos.
+    Let max checks be 50.
+    While the value of ti is less than or equal to num toks,
+        If the value of checks is greater than or equal to max checks,
+            Set ti to the value of num toks plus 1.
+        End if.
+        If the value of checks is less than max checks,
+            Create a list called nct.
+            Let ci be 1.
+            While the value of ci is less than or equal to ctx,
+                Let off be the value of ti minus ctx plus ci minus 1.
+                Let tid be item off of token ids.
+                Add tid to nct.
+                Add 1 to ci.
+            End while.
+            Set ctx tokens to the value of nct.
+            Call do forward.
+            Let expected be item ti of token ids.
+            Let best idx be 1.
+            Let best prob be item 1 of probs.
+            Let pi be 2.
+            While the value of pi is less than or equal to vocab sz,
+                Let p be item pi of probs.
+                If the value of p is greater than best prob,
+                    Set best idx to the value of pi.
+                    Set best prob to the value of p.
+                End if.
+                Add 1 to pi.
+            End while.
+            If the value of best idx is equal to expected,
+                Add 1 to matches.
+            End if.
+            Add 1 to checks.
+            Add 1 to ti.
+        End if.
+    End while.
+    If the value of checks is greater than 0,
+        Set coherence val to the value of matches divided by checks.
+    Otherwise,
+        Set coherence val to 0.
+    End if.
+End define.
+
+Note, Main training handler.
 Define handle train,
-    Let raw epochs be the text box epochs.
-    Let raw lr be the text box lr.
-    Let num epochs be the number of raw epochs.
-    Let lr be the number of raw lr.
+    Note, Read settings from text boxes.
+    Let rv be the text box twhole.
+    Set whole tok to the number of rv.
+    Let rv be the text box tvocab.
+    Set vocab limit to the number of rv.
+    Let rv be the text box tminpair.
+    Set min pair cnt to the number of rv.
+    Let rv be the text box tctx.
+    Set ctx to the number of rv.
+    Let rv be the text box tembed.
+    Set embed dim to the number of rv.
+    Let rv be the text box thidden.
+    Set hidden dim to the number of rv.
+    Let rv be the text box thlayers.
+    Set hidden lyrs to the number of rv.
+    Let rv be the text box tsteps.
+    Set num steps to the number of rv.
+    Let rv be the text box tbatch.
+    Set batch sz to the number of rv.
+    Let rv be the text box tlr.
+    Set learn rate to the number of rv.
+    Let rv be the text box thaltmode.
+    Set halt mode to the value of rv.
+    Let rv be the text box ttargloss.
+    Set target loss val to the number of rv.
+    Let rv be the text box trnddec.
+    Set rnd dec to the number of rv.
+    Let rv be the text box tsemflag.
+    Set sem flag to the number of rv.
+    Let rv be the text box tsemanchor.
+    Set sem anchor to the value of rv.
+    Let rv be the text box tsemwin.
+    Set sem win to the number of rv.
+    Let rv be the text box tsemscale.
+    Set sem scale to the number of rv.
+    Let rv be the text box ttargcoh.
+    Set target coh to the number of rv.
+    Let rv be the text box tcohwt.
+    Set coh wt to the number of rv.
+    Let rv be the text box tspacetok.
+    Set space tok to the number of rv.
+    Note, Get training text.
     Let raw text be the text box traintext.
     Let raw len be the length of raw text.
     If the value of raw len is greater than 0,
         Set training text to the value of raw text.
     End if.
     If the value of training text is equal to none,
-        Say Please enter training text or load a file.
+        Say Please provide training text or load a file.
         Return 0.
     End if.
-    Set words to the split of training text by space.
+    Note, Build vocabulary and initialize model.
     Call build vocab.
-    Call init weights.
-    Say Training with the value of vocab size joined with words.
-    Let epoch be 1.
-    While the value of epoch is less than or equal to num epochs,
-        Call train one epoch with the value of lr and store the result in loss.
-        Set total epochs to the value of epoch.
-        Clear window.
-        Add label Training in progress.
-        Add label Epoch the value of epoch of the value of num epochs.
-        Add label Loss the value of epoch loss.
-        Add label Vocab the value of vocab size joined with words.
-        Add button with text Save Model that calls handle save.
-        Add button with text Train Again that calls show ui.
-        Add 1 to epoch.
+    If the value of vocab sz is less than 2,
+        Say Vocabulary too small.
+        Return 0.
+    End if.
+    Call init model.
+    If the value of sem flag is equal to 1,
+        Call do semantic init.
+    End if.
+    Say Training with the value of vocab sz joined with space joined with tokens.
+    Note, Training loop.
+    Let num toks be the length of token ids.
+    Let min pos be the value of ctx plus 1.
+    If the value of num toks is less than or equal to min pos,
+        Say Not enough tokens for context window.
+        Return 0.
+    End if.
+    Let si be 1.
+    Let done be no.
+    While the value of done is equal to no,
+        If the value of si is greater than num steps,
+            If the value of halt mode is equal to steps,
+                Set done to yes.
+            End if.
+        End if.
+        If the value of done is equal to no,
+            Let total loss be 0.
+            Let bi be 1.
+            While the value of bi is less than or equal to batch sz,
+                Let pos be a random number between the value of min pos and the value of num toks.
+                Note, Fill context tokens.
+                Create a list called nct.
+                Let ci be 1.
+                While the value of ci is less than or equal to ctx,
+                    Let off be the value of pos minus ctx plus ci minus 1.
+                    Let tid be item off of token ids.
+                    Add tid to nct.
+                    Add 1 to ci.
+                End while.
+                Set ctx tokens to the value of nct.
+                Let tgt be item pos of token ids.
+                Call do forward.
+                Note, Compute loss.
+                Let target prob be item tgt of probs.
+                If the value of target prob is less than 0 point 0000001,
+                    Set target prob to 0 point 0000001.
+                End if.
+                Let loss be the logarithm of the value of target prob.
+                Set loss to the value of loss times negative 1.
+                Note, Add coherence penalty.
+                If the value of coh wt is greater than 0,
+                    Let coh penalty be the value of 1 minus coherence val times coh wt.
+                    Set loss to the value of loss plus coh penalty.
+                End if.
+                Set total loss to the value of total loss plus loss.
+                Call do backward with the value of tgt and the value of learn rate.
+                Add 1 to bi.
+            End while.
+            Set epoch loss to the value of total loss divided by batch sz.
+            Set current step to the value of si.
+            Note, Check coherence periodically.
+            If the value of target coh is greater than 0,
+                Call compute coherence.
+            End if.
+            Note, Update progress display.
+            Clear window.
+            Add label Training in progress.
+            Add label Step the value of si joined with space joined with of joined with space joined with the value of num steps.
+            Add label Loss the value of epoch loss.
+            If the value of target coh is greater than 0,
+                Add label Coherence the value of coherence val.
+            End if.
+            Note, Check stop on loss.
+            If the value of halt mode is equal to loss,
+                If the value of epoch loss is less than or equal to target loss val,
+                    Set done to yes.
+                End if.
+            End if.
+            Note, Check coherence target.
+            If the value of target coh is greater than 0,
+                If the value of coherence val is greater than or equal to target coh,
+                    Set done to yes.
+                End if.
+            End if.
+            Add 1 to si.
+        End if.
     End while.
-    Say Training done.
-    Say the value of epoch loss.
+    Set trained to yes.
+    Say Training complete.
+    Clear window.
+    Add label Training complete.
+    Add label Steps the value of current step.
+    Add label Final loss the value of epoch loss.
+    If the value of target coh is greater than 0,
+        Add label Coherence the value of coherence val.
+    End if.
+    Add button with text Save Model that calls handle save.
+    Add button with text Train Again that calls show ui.
 End define.
 
-Note, Main UI.
+Note, Save model to database.
+Define handle save,
+    Open a database called word predictor.
+    Note, Create tables.
+    Create a table called vocab with columns word and idx.
+    Create a table called config with columns key and val.
+    Create a table called embeddings with columns pos and val.
+    Create a table called hiddenw with columns pos and val.
+    Create a table called hiddenb with columns pos and val.
+    Create a table called outputw with columns pos and val.
+    Create a table called outputb with columns pos and val.
+    Note, Clear old data.
+    Delete from vocab where idx is not equal to negative 1.
+    Delete from config where val is not equal to negative 1.
+    Delete from embeddings where pos is not equal to negative 1.
+    Delete from hiddenw where pos is not equal to negative 1.
+    Delete from hiddenb where pos is not equal to negative 1.
+    Delete from outputw where pos is not equal to negative 1.
+    Delete from outputb where pos is not equal to negative 1.
+    Note, Save vocabulary.
+    Let vi be 1.
+    While the value of vi is less than or equal to vocab sz,
+        Let w be item vi of vocab words.
+        Insert into vocab the values the value of w and the value of vi.
+        Add 1 to vi.
+    End while.
+    Note, Save config.
+    Insert into config the values vocabsize and the value of vocab sz.
+    Insert into config the values context and the value of ctx.
+    Insert into config the values embeddim and the value of embed dim.
+    Insert into config the values hiddendim and the value of hidden dim.
+    Insert into config the values inputdim and the value of input dim.
+    Insert into config the values steps and the value of current step.
+    Insert into config the values learnrate and the value of learn rate.
+    Insert into config the values finalloss and the value of epoch loss.
+    Note, Save embedding weights.
+    Let total e be the value of vocab sz times embed dim.
+    Let wi be 1.
+    While the value of wi is less than or equal to total e,
+        Let w be item wi of embed wts.
+        Insert into embeddings the values the value of wi and the value of w.
+        Add 1 to wi.
+    End while.
+    Note, Save hidden weights.
+    Let total h be the value of hidden dim times input dim.
+    Let wi be 1.
+    While the value of wi is less than or equal to total h,
+        Let w be item wi of hidden wts.
+        Insert into hiddenw the values the value of wi and the value of w.
+        Add 1 to wi.
+    End while.
+    Note, Save hidden bias.
+    Let wi be 1.
+    While the value of wi is less than or equal to hidden dim,
+        Let w be item wi of hidden bias.
+        Insert into hiddenb the values the value of wi and the value of w.
+        Add 1 to wi.
+    End while.
+    Note, Save output weights.
+    Let total o be the value of vocab sz times hidden dim.
+    Let wi be 1.
+    While the value of wi is less than or equal to total o,
+        Let w be item wi of out wts.
+        Insert into outputw the values the value of wi and the value of w.
+        Add 1 to wi.
+    End while.
+    Note, Save output bias.
+    Let wi be 1.
+    While the value of wi is less than or equal to vocab sz,
+        Let w be item wi of out bias.
+        Insert into outputb the values the value of wi and the value of w.
+        Add 1 to wi.
+    End while.
+    Close the database.
+    Set trained to yes.
+    Say Model saved to database.
+    Clear window.
+    Add label Model saved successfully.
+    Add button with text Train Again that calls show ui.
+End define.
+
+Note, Load training text from file.
+Define handle load file,
+    Let fpath be the text box filepath.
+    Read the file the value of fpath and store it in content.
+    Set training text to the value of content.
+    Say File loaded.
+    Call show ui.
+End define.
+
+Note, Main UI with all settings.
 Define show ui,
     Clear window.
-    Add label Word Predictor Training.
-    Add label Enter text or load from file.
+    Add label Word Predictor MLP Training.
+    Add label Training text.
     Add text box traintext.
     Add label File path.
     Add text box filepath.
     Add button with text Load File that calls handle load file.
-    Add label Epochs and learning rate.
-    Add text box epochs.
-    Add text box lr.
+    Add label Tokenization.
+    Add label Whole tokens 0 or 1.
+    Add text box twhole.
+    Add label Vocab limit.
+    Add text box tvocab.
+    Add label Min pair count.
+    Add text box tminpair.
+    Add label Spacetoken 0 or 1.
+    Add text box tspacetok.
+    Add label Architecture.
+    Add label Context window.
+    Add text box tctx.
+    Add label Embed dim.
+    Add text box tembed.
+    Add label Hidden dim.
+    Add text box thidden.
+    Add label Hidden layers.
+    Add text box thlayers.
+    Add label Training.
+    Add label Steps.
+    Add text box tsteps.
+    Add label Batch size.
+    Add text box tbatch.
+    Add label Learning rate.
+    Add text box tlr.
+    Add label Stop mode steps or loss.
+    Add text box thaltmode.
+    Add label Target loss.
+    Add text box ttargloss.
+    Add label Round decimals.
+    Add text box trnddec.
+    Add label Semantic.
+    Add label Sem init 0 or 1.
+    Add text box tsemflag.
+    Add label Sem anchor.
+    Add text box tsemanchor.
+    Add label Sem window.
+    Add text box tsemwin.
+    Add label Sem scale.
+    Add text box tsemscale.
+    Add label Coherence.
+    Add label Target coherence.
+    Add text box ttargcoh.
+    Add label Coherence weight.
+    Add text box tcohwt.
     Add button with text Start Training that calls handle train.
     If the value of trained is equal to yes,
-        Add label Model saved.
+        Add button with text Save Model that calls handle save.
+        Add label Model trained and ready.
     End if.
 End define.
 
 Note, Launch window.
-Open window with title Word Predictor Training.
-Set window size to 500 by 600.
+Open window with title Word Predictor MLP Training.
+Set window size to 600 by 900.
 Set background color to #1e1e2e.
 Set text color to #cdd6f4.
 Set font size to 13.

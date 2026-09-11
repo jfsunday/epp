@@ -67,7 +67,15 @@ class Interpreter:
         return node.value
 
     def _eval_VarRef(self, node: ast.VarRef, env: Environment) -> object:
-        return env.get(node.name, node.line)
+        value = env.get(node.name, node.line)
+        # If it's a tkinter Entry widget (text box), return its text content
+        try:
+            import tkinter as tk
+            if isinstance(value, tk.Entry):
+                return value.get()
+        except ImportError:
+            pass
+        return value
 
     def _eval_RandomBetween(self, node: ast.RandomBetween, env: Environment) -> float:
         low = self._eval(node.low, env)
