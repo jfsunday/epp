@@ -18,7 +18,8 @@ Create a list called input vec.
 Create a list called hidden act.
 Create a list called logits.
 Create a list called probs.
-Let generated text be none.
+Let generated text be empty.
+Let got result be no.
 Let model loaded be no.
 
 Note, Load model from database.
@@ -283,6 +284,7 @@ Define handle predict,
     Let seed lower be the lowercase of seed.
     If not the value of vocab map has the entry the value of seed lower,
         Set generated text to Unknown word.
+        Set got result to yes.
         Call show ui.
         Return 0.
     End if.
@@ -299,6 +301,7 @@ Define handle predict,
     Call predict next and store the result in next idx.
     Let next word be item next idx of vocab words.
     Set generated text to the value of seed lower joined with space joined with next word.
+    Set got result to yes.
     Call show ui.
 End define.
 
@@ -312,6 +315,7 @@ Define handle auto,
     Let seed lower be the lowercase of seed.
     If not the value of vocab map has the entry the value of seed lower,
         Set generated text to Unknown word.
+        Set got result to yes.
         Call show ui.
         Return 0.
     End if.
@@ -353,6 +357,7 @@ Define handle auto,
         Add 1 to oi.
     End while.
     Set generated text to the value of output.
+    Set got result to yes.
     Call show ui.
 End define.
 
@@ -374,7 +379,7 @@ Define show ui,
         Add text box wordcount.
         Add button with text Auto Generate that calls handle auto.
     End if.
-    If the value of generated text is not equal to none,
+    If the value of got result is equal to yes,
         Add label Generated text.
         Add label the value of generated text.
     End if.
