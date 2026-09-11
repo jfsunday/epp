@@ -27,7 +27,8 @@ Create a list called vocab words.
 Create a dictionary called vocab map.
 Let vocab sz be 0.
 Create a list called token ids.
-Let training text be none.
+Let training text be empty.
+Let txt loaded be no.
 
 Note, Model weights.
 Create a list called embed wts.
@@ -50,6 +51,8 @@ Let trained be no.
 Let epoch loss be 0.
 Let coherence val be 0.
 Let current step be 0.
+Create a list called loss history.
+Let loss log be empty.
 
 Note, Build vocabulary from training text.
 Define build vocab,
@@ -551,8 +554,9 @@ Define handle train,
     Let raw len be the length of raw text.
     If the value of raw len is greater than 0,
         Set training text to the value of raw text.
+        Set txt loaded to yes.
     End if.
-    If the value of training text is equal to none,
+    If the value of txt loaded is equal to no,
         Say Please provide training text or load a file.
         Return 0.
     End if.
@@ -617,6 +621,24 @@ Define handle train,
             End while.
             Set epoch loss to the value of total loss divided by batch sz.
             Set current step to the value of si.
+            Add epoch loss to loss history.
+            Note, Build loss log string showing last entries.
+            Let lhlen be the length of loss history.
+            Set loss log to empty.
+            Let lstart be the value of lhlen minus 9.
+            If the value of lstart is less than 1,
+                Set lstart to 1.
+            End if.
+            Let li be the value of lstart.
+            While the value of li is less than or equal to lhlen,
+                Let lval be item li of loss history.
+                If the value of li is equal to lstart,
+                    Set loss log to the value of li joined with colon joined with the value of lval.
+                Otherwise,
+                    Set loss log to the value of loss log joined with space joined with the value of li joined with colon joined with the value of lval.
+                End if.
+                Add 1 to li.
+            End while.
             Note, Check coherence periodically.
             If the value of target coh is greater than 0,
                 Call compute coherence.
@@ -626,6 +648,8 @@ Define handle train,
             Add label Training in progress.
             Add label Step the value of si joined with space joined with of joined with space joined with the value of num steps.
             Add label Loss the value of epoch loss.
+            Add label Recent losses.
+            Add label the value of loss log.
             If the value of target coh is greater than 0,
                 Add label Coherence the value of coherence val.
             End if.
@@ -743,6 +767,7 @@ Define handle load file,
     Let fpath be the text box filepath.
     Read the file the value of fpath and store it in content.
     Set training text to the value of content.
+    Set txt loaded to yes.
     Say File loaded.
     Call show ui.
 End define.
