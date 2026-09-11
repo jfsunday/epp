@@ -218,17 +218,17 @@ Define build display word,
     Let pos be 1.
     Let current char be the substring of word from 1 to 1.
     If the value of guessed contains the value of current char,
-        Let display word be the value of current char.
+        Set display word to the value of current char.
     Otherwise,
-        Let display word be dash.
+        Set display word to dash.
     End if.
     Set pos to 2.
     While the value of pos is less than or equal to the value of word length,
         Let current char be the substring of word from the value of pos to the value of pos.
         If the value of guessed contains the value of current char,
-            Let display word be the value of display word plus the value of current char.
+            Set display word to the value of display word plus the value of current char.
         Otherwise,
-            Let display word be the value of display word plus dash.
+            Set display word to the value of display word plus dash.
         End if.
         Add 1 to pos.
     End while.
@@ -239,13 +239,13 @@ Note, Build the guessed letters display.
 Define build guessed text,
     Let guess count be the length of guessed.
     If the value of guess count is equal to 0,
-        Let guessed text be dash.
+        Set guessed text to dash.
     Otherwise,
-        Let guessed text be item 1 of guessed.
+        Set guessed text to item 1 of guessed.
         Let gi be 2.
         While the value of gi is less than or equal to the value of guess count,
             Let next letter be item the value of gi of guessed.
-            Let guessed text be the value of guessed text plus the value of next letter.
+            Set guessed text to the value of guessed text plus the value of next letter.
             Add 1 to gi.
         End while.
     End if.
