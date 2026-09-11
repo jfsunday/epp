@@ -220,7 +220,7 @@ Define build display word,
     If the value of guessed contains the value of current char,
         Let display word be the value of current char.
     Otherwise,
-        Let display word be underscore.
+        Let display word be dash.
     End if.
     Set pos to 2.
     While the value of pos is less than or equal to the value of word length,
@@ -228,7 +228,7 @@ Define build display word,
         If the value of guessed contains the value of current char,
             Let display word be the value of display word plus the value of current char.
         Otherwise,
-            Let display word be the value of display word plus underscore.
+            Let display word be the value of display word plus dash.
         End if.
         Add 1 to pos.
     End while.
@@ -449,8 +449,8 @@ Define show game,
 
     Note, Show the word.
     Call build display word.
-    Set font size to 28.
-    Set text color to #cdd6f4.
+    Set font size to 32.
+    Set text color to #89b4fa.
     Add label the value of display word.
 
     Note, Show game status.
