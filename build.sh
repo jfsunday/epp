@@ -25,10 +25,15 @@ fi
 echo "=== E++ Build ==="
 echo ""
 
-# Push & trigger Windows build
+# Always commit & push pending changes before remote build
 if $BUILD_WINDOWS; then
+    if [ -n "$(git status --porcelain -- epp/ build.py build.sh .github/)" ]; then
+        echo "[..] Committing pending changes..."
+        git add epp/ build.py build.sh .github/
+        git commit -m "pre-build auto-commit" 2>/dev/null || true
+    fi
     echo "[..] Pushing latest changes to GitHub..."
-    git push origin main 2>/dev/null || true
+    git push origin main || { echo "[!!] Push failed"; exit 1; }
     echo "[..] Triggering Windows build on GitHub..."
     gh workflow run release.yml --repo "$REPO"
     echo "[ok] Windows build triggered"
