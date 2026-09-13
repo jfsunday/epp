@@ -19,7 +19,21 @@ STMT_KEYWORDS = {
     "start", "create", "remove", "for",
     "respond", "insert", "select", "update", "delete", "close",
     "read", "write", "enable", "serve", "show", "run",
+    "every", "stop", "when", "before", "send", "broadcast", "arrange", "align",
 }
+
+# Words that may follow "the" to introduce a built-in expression.
+THE_EXPRESSIONS = {
+    "length", "keys", "entry", "mean", "sum", "min", "max", "dot",
+    "exponential", "logarithm",
+    "lowercase", "uppercase", "split", "substring", "position",
+    "number", "text", "current", "body", "path", "query", "dropdown",
+    "cookie", "session", "form", "uploaded",
+    "checkbox", "radio", "slider", "mouse", "x", "y",
+}
+
+# Ready-made games that "Start a ... game." can launch.
+_GAME_TYPES = {"jump and run", "flappy bird", "snake", "pong", "memory"}
 
 
 class Parser:
@@ -83,11 +97,14 @@ class Parser:
 
     # ── Identifier Reader ────────────────────────────────────────────
 
-    def read_identifier(self, stop_words: set[str], allow_keywords: bool = False) -> str:
+    def read_identifier(self, stop_words: set[str], allow_keywords: bool = False,
+                        keep_case: bool = False) -> str:
         """Read a multi-word identifier, stopping at stop_words, COMMA, PERIOD, or EOF.
 
         If allow_keywords is True, statement keywords are allowed in the identifier
         (needed for function/variable names like 'add numbers', 'say hello').
+        If keep_case is True, the original spelling is preserved (used for labels
+        that end up on screen, such as menu titles).
         """
         tok = self.current()
         if tok.kind != TokenKind.WORD:
@@ -104,7 +121,8 @@ class Parser:
             and self.current().value.lower() not in block_keywords
             and not self.at_kind(TokenKind.EOF)
         ):
-            parts.append(self.advance().value.lower())
+            value = self.advance().value
+            parts.append(value if keep_case else value.lower())
 
         return " ".join(parts)
 
@@ -172,6 +190,38 @@ class Parser:
             self.expect_word("and")
             high = self.parse_value(stop_words)
             return ast.RandomBetween(low, high, line)
+
+        # "key left is pressed"
+        if self.at_word("key"):
+            saved = self.pos
+            self.advance()  # key
+            try:
+                key = self.read_identifier({"is"})
+            except EppParseError:
+                self.pos = saved
+            else:
+                if self.at_word("is") and self.peek(1).value.lower() == "pressed":
+                    self.advance()  # is
+                    self.advance()  # pressed
+                    return ast.KeyPressedExpr(key, line)
+                self.pos = saved
+
+        # "sprite bird collides with sprite pipe"
+        if self.at_word("sprite"):
+            saved = self.pos
+            self.advance()  # sprite
+            try:
+                left_name = self.read_identifier({"collides"})
+            except EppParseError:
+                self.pos = saved
+            else:
+                if self.at_word("collides"):
+                    self.advance()  # collides
+                    self.expect_word("with")
+                    self.expect_word("sprite")
+                    right_name = self.read_identifier(stop_words)
+                    return ast.SpriteCollidesExpr(left_name, right_name, line)
+                self.pos = saved
 
         # "item N of LIST"
         if self.at_word("item"):
@@ -362,12 +412,74 @@ class Parser:
                 name = self.read_identifier(stop_words)
                 return ast.QueryParamExpr(param, name, line)
 
+            # ── Cookies, sessions, forms, uploads ──
+            elif peek_val == "cookie":
+                self.advance()  # the
+                self.advance()  # cookie
+                cookie_name = self.read_identifier({"of"} | stop_words)
+                self.expect_word("of")
+                request_var = self.read_identifier(stop_words)
+                return ast.CookieExpr(cookie_name, request_var, line)
+            elif peek_val == "session":
+                self.advance()  # the
+                self.advance()  # session
+                self.expect_word("value")
+                key = self.read_identifier({"of"} | stop_words)
+                self.expect_word("of")
+                request_var = self.read_identifier(stop_words)
+                return ast.SessionValueExpr(key, request_var, line)
+            elif peek_val == "form":
+                self.advance()  # the
+                self.advance()  # form
+                self.expect_word("value")
+                field_name = self.read_identifier({"of"} | stop_words)
+                self.expect_word("of")
+                request_var = self.read_identifier(stop_words)
+                return ast.FormValueExpr(field_name, request_var, line)
+            elif peek_val == "uploaded":
+                self.advance()  # the
+                self.advance()  # uploaded
+                self.expect_word("file")
+                field_name = self.read_identifier({"of"} | stop_words)
+                self.expect_word("of")
+                request_var = self.read_identifier(stop_words)
+                return ast.UploadedFileExpr(field_name, request_var, line)
+
+            # ── Realtime value expressions ──
+            elif peek_val == "mouse":
+                self.advance()  # the
+                self.advance()  # mouse
+                axis = self.advance().value.lower()
+                return self._maybe_chain_ops(ast.MouseCoordExpr(axis, line), stop_words)
+            elif peek_val in ("x", "y") and self.peek(2).value.lower() == "of":
+                self.advance()  # the
+                axis = self.advance().value.lower()  # x / y
+                self.advance()  # of
+                name = self.read_identifier(stop_words)
+                return self._maybe_chain_ops(ast.SpriteCoordExpr(name, axis, line), stop_words)
+
             # ── GUI value expressions ──
             elif peek_val == "dropdown":
                 self.advance()  # the
                 self.advance()  # dropdown
                 name = self.read_identifier(stop_words)
                 return ast.DropdownValueExpr(name, line)
+            elif peek_val == "checkbox":
+                self.advance()  # the
+                self.advance()  # checkbox
+                name = self.read_identifier(stop_words)
+                return ast.CheckboxValueExpr(name, line)
+            elif peek_val == "radio":
+                self.advance()  # the
+                self.advance()  # radio
+                self.expect_word("group")
+                name = self.read_identifier(stop_words)
+                return ast.RadioGroupValueExpr(name, line)
+            elif peek_val == "slider":
+                self.advance()  # the
+                self.advance()  # slider
+                name = self.read_identifier(stop_words)
+                return self._maybe_chain_ops(ast.SliderValueExpr(name, line), stop_words)
 
         # Free text (string literal) — greedy until PERIOD/COMMA/EOF or stop_word
         return self._parse_free_text(stop_words)
@@ -401,10 +513,7 @@ class Parser:
             left.value = -left.value
         elif self.at_word("the"):
             peek_val = self.peek(1).value.lower()
-            if peek_val in ("length", "keys", "entry", "value", "mean", "sum", "min", "max", "dot",
-                            "exponential", "logarithm",
-                            "lowercase", "uppercase", "split", "substring", "position",
-                            "number", "text", "current", "body", "path", "query", "dropdown"):
+            if peek_val == "value" or peek_val in THE_EXPRESSIONS:
                 return self.parse_value(stop_words)
             else:
                 expr_stops = stop_words | self._EXPR_OPS
@@ -512,6 +621,14 @@ class Parser:
             elif self.at_word("with"):
                 saved_with = self.pos
                 self.advance()  # with
+                if self.at_word("placeholder"):
+                    self.advance()  # placeholder
+                    placeholder = self.read_identifier({"replaced"} | stop_words)
+                    self.expect_word("replaced")
+                    self.expect_word("by")
+                    new_val = self._parse_operand(stop_words)
+                    left = ast.ReplacePlaceholderExpr(left, placeholder, new_val, line)
+                    continue
                 old_val = self._parse_operand({"replaced"} | stop_words)
                 if self.at_word("replaced"):
                     self.advance()  # replaced
@@ -587,13 +704,8 @@ class Parser:
             self.advance()  # value
             self.expect_word("of")
             return self._parse_expression(stop_words)
-        if self.at_word("the"):
-            peek_val = self.peek(1).value.lower()
-            if peek_val in ("length", "keys", "entry", "mean", "sum", "min", "max", "dot",
-                            "exponential", "logarithm",
-                            "lowercase", "uppercase", "split", "substring", "position",
-                            "number", "text", "current", "body", "path", "query", "dropdown"):
-                return self.parse_value(stop_words)
+        if self.at_word("the") and self.peek(1).value.lower() in THE_EXPRESSIONS:
+            return self.parse_value(stop_words)
 
         # Variable reference
         expr_stops = stop_words | self._EXPR_OPS
@@ -731,8 +843,37 @@ class Parser:
             return self._parse_show(line)
         elif word == "run":
             return self._parse_run(line)
+        elif word == "every":
+            return self._parse_every(line)
+        elif word == "stop":
+            return self._parse_stop(line)
+        elif word == "when":
+            return self._parse_when(line)
+        elif word == "before":
+            return self._parse_before(line)
+        elif word == "send":
+            return self._parse_send(line)
+        elif word == "broadcast":
+            return self._parse_broadcast(line)
+        elif word == "arrange":
+            return self._parse_arrange(line)
+        elif word == "align":
+            return self._parse_align(line)
         else:
             raise EppParseError(f"unknown statement '{tok.value}'", line)
+
+    def _open_block(self) -> None:
+        """Consume the comma and the optional 'do the following.' that opens a block."""
+        self.expect_kind(TokenKind.COMMA)
+        if (
+            self.at_word("do")
+            and self.peek(1).value.lower() == "the"
+            and self.peek(2).value.lower() == "following"
+        ):
+            self.advance()  # do
+            self.advance()  # the
+            self.advance()  # following
+            self.skip_period()
 
     def _parse_block(self, end_words: set[str]) -> list[object]:
         """Parse statements until we encounter a line starting with one of end_words."""
@@ -847,6 +988,43 @@ class Parser:
                 size = self.parse_value()
                 self.skip_period()
                 return ast.SetPenSizeStmt(size, line)
+
+        # Check for "Set position of SPRITE to X by Y."
+        if self.at_word("position"):
+            self.advance()  # position
+            self.expect_word("of")
+            name = self.read_identifier({"to"})
+            self.expect_word("to")
+            x = self.parse_value({"by"})
+            self.expect_word("by")
+            y = self.parse_value()
+            self.skip_period()
+            return ast.SetSpritePositionStmt(name, x, y, line)
+
+        # Check for "Set the cookie NAME of REQUEST to VALUE."
+        if self.at_word("the") and self.peek(1).value.lower() == "cookie":
+            self.advance()  # the
+            self.advance()  # cookie
+            cookie_name = self.read_identifier({"of"})
+            self.expect_word("of")
+            request_var = self.read_identifier({"to"})
+            self.expect_word("to")
+            value = self.parse_value()
+            self.skip_period()
+            return ast.SetCookieStmt(cookie_name, request_var, value, line)
+
+        # Check for "Set the session value KEY in REQUEST to VALUE."
+        if self.at_word("the") and self.peek(1).value.lower() == "session":
+            self.advance()  # the
+            self.advance()  # session
+            self.expect_word("value")
+            key = self.read_identifier({"in"})
+            self.expect_word("in")
+            request_var = self.read_identifier({"to"})
+            self.expect_word("to")
+            value = self.parse_value()
+            self.skip_period()
+            return ast.SetSessionValueStmt(key, request_var, value, line)
 
         # Check for "Set item X of LIST to VALUE."
         if self.at_word("item"):
@@ -967,12 +1145,133 @@ class Parser:
             self.skip_period()
             return ast.AddRowStmt(table_name, values, line)
 
+        # GUI: Add checkbox NAME with label TEXT.
+        if self.at_word("checkbox"):
+            self.advance()  # checkbox
+            name = self.read_identifier({"with"}, allow_keywords=True)
+            self.expect_word("with")
+            self.expect_word("label")
+            label = self.parse_value()
+            self.skip_period()
+            return ast.AddCheckboxStmt(name, label, line)
+
+        # GUI: Add radio group NAME with options A, B, C.
+        if self.at_word("radio"):
+            self.advance()  # radio
+            self.expect_word("group")
+            name = self.read_identifier({"with"}, allow_keywords=True)
+            self.expect_word("with")
+            self.expect_word("options")
+            options = self._parse_name_list(keep_case=True)
+            self.skip_period()
+            return ast.AddRadioGroupStmt(name, options, line)
+
+        # GUI: Add slider NAME from LOW to HIGH.
+        if self.at_word("slider"):
+            self.advance()  # slider
+            name = self.read_identifier({"from"}, allow_keywords=True)
+            self.expect_word("from")
+            low = self.parse_value({"to"})
+            self.expect_word("to")
+            high = self.parse_value()
+            self.skip_period()
+            return ast.AddSliderStmt(name, low, high, line)
+
+        # GUI: Add image NAME from the file PATH.
+        if self.at_word("image"):
+            self.advance()  # image
+            name = self.read_identifier({"from"}, allow_keywords=True)
+            self.expect_word("from")
+            self.expect_word("the")
+            self.expect_word("file")
+            file_path = self.parse_value()
+            self.skip_period()
+            return ast.AddImageStmt(name, file_path, line)
+
+        # GUI: Add menu item ITEM in MENU that calls FN.
+        #      Add menu NAME with options A, B, C.
+        if self.at_word("menu"):
+            self.advance()  # menu
+            if self.at_word("item"):
+                self.advance()  # item
+                item = self.read_identifier({"in"}, allow_keywords=True, keep_case=True)
+                self.expect_word("in")
+                menu_name = self.read_identifier({"that"}, allow_keywords=True, keep_case=True)
+                self.expect_word("that")
+                self.expect_word("calls")
+                fn_name = self.read_identifier(set(), allow_keywords=True)
+                self.skip_period()
+                return ast.AddMenuItemStmt(item, menu_name, fn_name, line)
+            name = self.read_identifier({"with"}, allow_keywords=True, keep_case=True)
+            self.expect_word("with")
+            self.expect_word("options")
+            options = self._parse_name_list(keep_case=True)
+            self.skip_period()
+            return ast.AddMenuStmt(name, options, line)
+
+        # GUI: Add spacing N around all widgets.
+        if self.at_word("spacing"):
+            self.advance()  # spacing
+            amount = self.parse_value({"around"})
+            self.expect_word("around")
+            self.expect_word("all")
+            self.expect_word("widgets")
+            self.skip_period()
+            return ast.AddSpacingStmt(amount, line)
+
+        # Realtime: Add sprite NAME [with image PATH].
+        if self.at_word("sprite"):
+            self.advance()  # sprite
+            name = self.read_identifier({"with"}, allow_keywords=True)
+            image = None
+            if self.at_word("with"):
+                self.advance()  # with
+                self.expect_word("image")
+                image = self.parse_value()
+            self.skip_period()
+            return ast.AddSpriteStmt(name, image, line)
+
+        # Realtime: Add canvas NAME with width W and height H.
+        if self.at_word("canvas"):
+            self.advance()  # canvas
+            name = self.read_identifier({"with"}, allow_keywords=True)
+            self.expect_word("with")
+            self.expect_word("width")
+            width = self.parse_value({"and"})
+            self.expect_word("and")
+            self.expect_word("height")
+            height = self.parse_value()
+            self.skip_period()
+            return ast.AddCanvasStmt(name, width, height, line)
+
+        # Webserver: Add websocket route PATH to HANDLER.
+        if self.at_word("websocket"):
+            self.advance()  # websocket
+            self.expect_word("route")
+            path = self._parse_route_path()
+            self.expect_word("to")
+            handler = self.read_identifier(set(), allow_keywords=True)
+            self.skip_period()
+            return ast.AddWebsocketRouteStmt(path, handler, line)
+
         # Arithmetic: Add <value> to <name>.
         value = self.parse_value({"to"})
         self.expect_word("to")
         name = self.read_identifier(set())
         self.skip_period()
         return ast.AddStmt(name, value, line)
+
+    def _parse_route_path(self) -> str:
+        """Parse a route path: 'slash' becomes '/', words are joined."""
+        path = ""
+        while (
+            not self.at_word("to")
+            and not self.at_kind(TokenKind.PERIOD)
+            and not self.at_kind(TokenKind.EOF)
+        ):
+            word = self.advance().value.lower()
+            path += "/" if word == "slash" else word
+        return path or "/"
 
     def _parse_subtract(self, line: int) -> ast.SubtractStmt:
         """Subtract <value> from <name>."""
@@ -1005,7 +1304,7 @@ class Parser:
         """If <cond>, <body> [Otherwise if <cond>, <body>]* [Otherwise, <body>] End if."""
         self.advance()  # if
         cond = self.parse_condition()
-        self.expect_kind(TokenKind.COMMA)
+        self._open_block()
 
         branches: list[tuple[object, list[object]]] = []
         body = self._parse_block({"otherwise", "end"})
@@ -1018,11 +1317,11 @@ class Parser:
             if self.at_word("if"):
                 self.advance()  # if
                 cond = self.parse_condition()
-                self.expect_kind(TokenKind.COMMA)
+                self._open_block()
                 body = self._parse_block({"otherwise", "end"})
                 branches.append((cond, body))
             else:
-                self.expect_kind(TokenKind.COMMA)
+                self._open_block()
                 else_body = self._parse_block({"end"})
                 break
 
@@ -1038,7 +1337,7 @@ class Parser:
         """While <cond>, <body> End while."""
         self.advance()  # while
         cond = self.parse_condition()
-        self.expect_kind(TokenKind.COMMA)
+        self._open_block()
 
         body = self._parse_block({"end"})
 
@@ -1055,7 +1354,7 @@ class Parser:
         self.advance()  # repeat
         count = self.parse_value({"times"})
         self.expect_word("times")
-        self.expect_kind(TokenKind.COMMA)
+        self._open_block()
 
         body = self._parse_block({"end"})
 
@@ -1074,10 +1373,42 @@ class Parser:
         self.skip_period()
         return ast.SayStmt(value, line)
 
-    def _parse_ask(self, line: int) -> ast.AskStmt:
-        """Ask for <var> with the message <prompt>."""
+    def _parse_ask(self, line: int) -> object:
+        """Ask for <var> with the message <prompt>.
+        OR Ask yes or no with the message <prompt>.
+        OR Ask for a file to open / to save as."""
         self.advance()  # ask
+
+        # Ask yes or no with the message TEXT.
+        if self.at_word("yes"):
+            self.advance()  # yes
+            self.expect_word("or")
+            self.expect_word("no")
+            self.expect_word("with")
+            self.expect_word("the")
+            self.expect_word("message")
+            message = self.parse_value()
+            self.skip_period()
+            return ast.AskYesNoStmt(message, line)
+
         self.expect_word("for")
+
+        # Ask for a file to open. / Ask for a file to save as.
+        if self.at_word("a") and self.peek(1).value.lower() == "file":
+            self.advance()  # a
+            self.advance()  # file
+            self.expect_word("to")
+            if self.at_word("save"):
+                self.advance()  # save
+                if self.at_word("as"):
+                    self.advance()  # as
+                mode = "save"
+            else:
+                self.expect_word("open")
+                mode = "open"
+            self.skip_period()
+            return ast.AskFileStmt(mode, line)
+
         name = self.read_identifier({"with"})
         self.expect_word("with")
         self.expect_word("the")
@@ -1100,7 +1431,7 @@ class Parser:
             # Parse parameter list: param1, param2, and param3
             params = self._parse_param_list()
 
-        self.expect_kind(TokenKind.COMMA)
+        self._open_block()
         body = self._parse_block({"end"})
 
         if not self.at_word("end"):
@@ -1242,8 +1573,18 @@ class Parser:
         return ast.OpenWindowStmt(title, line)
 
     def _parse_move(self, line: int) -> ast.MoveStmt:
-        """Move forward/backward <n> steps  OR  Move to <x> and <y>."""
+        """Move forward/backward <n> steps  OR  Move to <x> and <y>
+        OR  Move sprite <name> by <dx> by <dy>."""
         self.advance()  # move
+        if self.at_word("sprite"):
+            self.advance()  # sprite
+            name = self.read_identifier({"by"}, allow_keywords=True)
+            self.expect_word("by")
+            dx = self.parse_value({"by"})
+            self.expect_word("by")
+            dy = self.parse_value()
+            self.skip_period()
+            return ast.MoveSpriteStmt(name, dx, dy, line)
         if self.at_word("to"):
             self.advance()  # to
             x = self.parse_value({"and"})
@@ -1294,9 +1635,60 @@ class Parser:
         return ast.PenStmt(action, line)
 
     def _parse_draw(self, line: int) -> ast.DrawCircleStmt:
-        """Draw circle with radius <n>."""
+        """Draw circle with radius <n>  (turtle)
+        OR  Draw rectangle/circle/text ... at <x> by <y> ...  (canvas)."""
         self.advance()  # draw
+
+        # Draw rectangle at X by Y with width W and height H and color C.
+        if self.at_word("rectangle"):
+            self.advance()  # rectangle
+            self.expect_word("at")
+            x = self.parse_value({"by"})
+            self.expect_word("by")
+            y = self.parse_value({"with"})
+            self.expect_word("with")
+            self.expect_word("width")
+            width = self.parse_value({"and"})
+            self.expect_word("and")
+            self.expect_word("height")
+            height = self.parse_value({"and"})
+            self.expect_word("and")
+            self.expect_word("color")
+            color = self.parse_value()
+            self.skip_period()
+            return ast.DrawRectangleStmt(x, y, width, height, color, line)
+
+        # Draw text TEXT at X by Y with color C.
+        if self.at_word("text"):
+            self.advance()  # text
+            text = self.parse_value({"at"})
+            self.expect_word("at")
+            x = self.parse_value({"by"})
+            self.expect_word("by")
+            y = self.parse_value({"with"})
+            self.expect_word("with")
+            self.expect_word("color")
+            color = self.parse_value()
+            self.skip_period()
+            return ast.DrawCanvasTextStmt(text, x, y, color, line)
+
         self.expect_word("circle")
+
+        # Draw circle at X by Y with radius R and color C.
+        if self.at_word("at"):
+            self.advance()  # at
+            x = self.parse_value({"by"})
+            self.expect_word("by")
+            y = self.parse_value({"with"})
+            self.expect_word("with")
+            self.expect_word("radius")
+            radius = self.parse_value({"and"})
+            self.expect_word("and")
+            self.expect_word("color")
+            color = self.parse_value()
+            self.skip_period()
+            return ast.DrawCanvasCircleStmt(x, y, radius, color, line)
+
         self.expect_word("with")
         self.expect_word("radius")
         radius = self.parse_value()
@@ -1341,13 +1733,19 @@ class Parser:
             self.skip_period()
             return ast.ClearTableStmt(name, line)
 
+        if self.at_word("canvas"):
+            self.advance()  # canvas
+            self.skip_period()
+            return ast.ClearCanvasStmt(line)
+
         self.expect_word("window")
         self.skip_period()
         return ast.ClearWindowStmt(line)
 
 
     def _parse_start(self, line: int) -> object:
-        """Start a jump and run game. OR Start a webserver on port N."""
+        """Start a <kind> game. OR Start a webserver on port N.
+        OR Start a session for REQUEST."""
         self.advance()  # start
         self.expect_word("a")
 
@@ -1359,13 +1757,28 @@ class Parser:
             self.skip_period()
             return ast.StartWebserverStmt(port, line)
 
-        # Expect: jump and run game
-        self.expect_word("jump")
-        self.expect_word("and")
-        self.expect_word("run")
+        if self.at_word("session"):
+            self.advance()  # session
+            self.expect_word("for")
+            request_var = self.read_identifier(set())
+            self.skip_period()
+            return ast.StartSessionStmt(request_var, line)
+
+        # Start a <kind> game.
+        words: list[str] = []
+        while (
+            not self.at_word("game")
+            and not self.at_kind(TokenKind.PERIOD)
+            and not self.at_kind(TokenKind.EOF)
+        ):
+            words.append(self.advance().value.lower())
         self.expect_word("game")
         self.skip_period()
-        return ast.StartGameStmt("jump and run", line)
+        game_type = " ".join(words)
+        if game_type not in _GAME_TYPES:
+            known = ", ".join(sorted(_GAME_TYPES))
+            raise EppParseError(f"unknown game {game_type!r}, expected one of {known}", line)
+        return ast.StartGameStmt(game_type, line)
 
     # ── Data Structure Parsers ──────────────────────────────────────
 
@@ -1400,6 +1813,12 @@ class Parser:
     def _parse_remove(self, line: int) -> object:
         """Remove item/value/entry from list/dict."""
         self.advance()  # remove
+
+        if self.at_word("sprite"):
+            self.advance()  # sprite
+            name = self.read_identifier(set(), allow_keywords=True)
+            self.skip_period()
+            return ast.RemoveSpriteStmt(name, line)
 
         if self.at_word("item"):
             self.advance()  # item
@@ -1437,7 +1856,7 @@ class Parser:
             value_name = self.read_identifier({"in"}, allow_keywords=True)
         self.expect_word("in")
         list_name = self.read_identifier(set(), allow_keywords=True)
-        self.expect_kind(TokenKind.COMMA)
+        self._open_block()
 
         body = self._parse_block({"end"})
 
@@ -1467,10 +1886,10 @@ class Parser:
 
     # ── Database Parsers ────────────────────────────────────────────
 
-    def _parse_name_list(self) -> list[str]:
+    def _parse_name_list(self, keep_case: bool = False) -> list[str]:
         """Parse a name list like: col1, col2, and col3 or just col1."""
         names: list[str] = []
-        name = self.read_identifier({"and"}, allow_keywords=True)
+        name = self.read_identifier({"and"}, allow_keywords=True, keep_case=keep_case)
         names.append(name)
 
         while self.at_kind(TokenKind.COMMA):
@@ -1478,16 +1897,16 @@ class Parser:
             if next_tok.kind == TokenKind.WORD and next_tok.value.lower() == "and":
                 self.advance()  # comma
                 self.advance()  # and
-                name = self.read_identifier(set(), allow_keywords=True)
+                name = self.read_identifier(set(), allow_keywords=True, keep_case=keep_case)
                 names.append(name)
                 break
             self.advance()  # comma
-            name = self.read_identifier({"and"}, allow_keywords=True)
+            name = self.read_identifier({"and"}, allow_keywords=True, keep_case=keep_case)
             names.append(name)
 
         if self.at_word("and"):
             self.advance()
-            name = self.read_identifier(set(), allow_keywords=True)
+            name = self.read_identifier(set(), allow_keywords=True, keep_case=keep_case)
             names.append(name)
 
         return names
@@ -1678,6 +2097,146 @@ class Parser:
         self.expect_word("background")
         self.skip_period()
         return ast.RunInBackgroundStmt(name, line)
+
+
+    # ── Realtime Parsers ───────────────────────────────────────────
+
+    def _parse_every(self, line: int) -> ast.EveryStmt:
+        """Every N milliseconds, do the following. ... End every."""
+        self.advance()  # every
+        interval = self.parse_value({"milliseconds", "seconds"})
+        if self.at_word("seconds"):
+            self.advance()  # seconds
+            interval = ast.BinaryOp("times", interval, ast.NumberLit(1000.0, line), line)
+        else:
+            self.expect_word("milliseconds")
+        self._open_block()
+
+        body = self._parse_block({"end"})
+
+        if not self.at_word("end"):
+            raise EppParseError("expected 'End every' to close the every block", self.current().line)
+        self.advance()  # end
+        self.expect_word("every")
+        self.skip_period()
+        return ast.EveryStmt(interval, body, line)
+
+    def _parse_stop(self, line: int) -> ast.StopTickingStmt:
+        """Stop ticking."""
+        self.advance()  # stop
+        self.expect_word("ticking")
+        self.skip_period()
+        return ast.StopTickingStmt(line)
+
+    def _parse_when(self, line: int) -> object:
+        """When key K is pressed, ... End when.  OR  When the mouse is clicked, ... End when."""
+        self.advance()  # when
+
+        if self.at_word("key"):
+            self.advance()  # key
+            key = self.read_identifier({"is"})
+            self.expect_word("is")
+            self.expect_word("pressed")
+            body = self._parse_when_body()
+            return ast.WhenKeyStmt(key, body, line)
+
+        self.expect_word("the")
+        self.expect_word("mouse")
+        self.expect_word("is")
+        if self.at_word("moved"):
+            event = "moved"
+        elif self.at_word("clicked"):
+            event = "clicked"
+        else:
+            raise EppParseError("expected 'clicked' or 'moved' after 'the mouse is'", line)
+        self.advance()
+        body = self._parse_when_body()
+        return ast.WhenMouseStmt(event, body, line)
+
+    def _parse_when_body(self) -> list[object]:
+        """Parse the block of a When statement, closed by 'End when.'."""
+        self._open_block()
+        body = self._parse_block({"end"})
+        if not self.at_word("end"):
+            raise EppParseError("expected 'End when' to close the when block", self.current().line)
+        self.advance()  # end
+        self.expect_word("when")
+        self.skip_period()
+        return body
+
+    # ── Web Parsers ────────────────────────────────────────────────
+
+    def _parse_before(self, line: int) -> ast.BeforeRequestStmt:
+        """Before every request, do the following. ... End before."""
+        self.advance()  # before
+        self.expect_word("every")
+        self.expect_word("request")
+        self._open_block()
+
+        body = self._parse_block({"end"})
+
+        if not self.at_word("end"):
+            raise EppParseError("expected 'End before' to close the before block", self.current().line)
+        self.advance()  # end
+        self.expect_word("before")
+        self.skip_period()
+        return ast.BeforeRequestStmt(body, line)
+
+    def _parse_send(self, line: int) -> ast.SendToConnectionStmt:
+        """Send VALUE to CONNECTION."""
+        self.advance()  # send
+        value = self.parse_value({"to"})
+        self.expect_word("to")
+        connection = self.read_identifier(set())
+        self.skip_period()
+        return ast.SendToConnectionStmt(value, connection, line)
+
+    def _parse_broadcast(self, line: int) -> ast.BroadcastStmt:
+        """Broadcast VALUE to all connections."""
+        self.advance()  # broadcast
+        value = self.parse_value({"to"})
+        self.expect_word("to")
+        self.expect_word("all")
+        self.expect_word("connections")
+        self.skip_period()
+        return ast.BroadcastStmt(value, line)
+
+    # ── Layout Parsers ─────────────────────────────────────────────
+
+    def _parse_arrange(self, line: int) -> ast.ArrangeGridStmt:
+        """Arrange widgets in a grid with N columns."""
+        self.advance()  # arrange
+        self.expect_word("widgets")
+        self.expect_word("in")
+        self.expect_word("a")
+        self.expect_word("grid")
+        self.expect_word("with")
+        columns = self.parse_value({"columns"})
+        self.expect_word("columns")
+        self.skip_period()
+        return ast.ArrangeGridStmt(columns, line)
+
+    def _parse_align(self, line: int) -> ast.AlignWidgetStmt:
+        """Align label NAME to the center."""
+        self.advance()  # align
+        if self.at_word("text"):
+            self.advance()  # text
+            self.expect_word("box")
+            kind = "text box"
+        elif self.at_word("button"):
+            self.advance()  # button
+            kind = "button"
+        elif self.at_word("label"):
+            self.advance()  # label
+            kind = "label"
+        else:
+            raise EppParseError("expected 'label', 'button', or 'text box' after Align", line)
+        name = self.read_identifier({"to"}, allow_keywords=True)
+        self.expect_word("to")
+        self.expect_word("the")
+        alignment = self.advance().value.lower()
+        self.skip_period()
+        return ast.AlignWidgetStmt(kind, name, alignment, line)
 
 
 def parse(tokens: list[Token]) -> list[object]:

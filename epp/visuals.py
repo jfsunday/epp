@@ -41,6 +41,12 @@ class Visuals:
         self._widgets: list = []  # track widgets for responsive updates
         self._flow_frame = None  # compact button flow frame
         self._flow_count = 0  # buttons in current flow row
+        self._game_canvas = None  # free-drawing canvas for sprites/shapes
+        self._image_refs: list = []  # keep PhotoImage alive against the GC
+        self._menubar = None  # top-level menu bar
+        self._menus: dict = {}  # name -> cascade tk.Menu
+        self._grid_columns = None  # set once arrange_grid() was used
+        self._spacing = None  # uniform padding requested via add_spacing()
 
     def _resolve_font(self):
         """Pick the first available font family."""
@@ -145,7 +151,8 @@ class Visuals:
                     widget.pack_configure(padx=pad_x)
             except tk.TclError:
                 pass
-        if self._canvas and not self._turtle and not getattr(self, '_turtle_init', False):
+        if (self._canvas and self._canvas is not self._game_canvas
+                and not self._turtle and not getattr(self, '_turtle_init', False)):
             try:
                 cw = max(200, w - 80)
                 ch = max(200, int(cw * 0.75))
@@ -179,7 +186,8 @@ class Visuals:
             font=self._font(),
             wraplength=450, justify="center",
         )
-        label.pack(pady=4, anchor="center")
+        label.pack(pady=self._spacing if self._spacing is not None else 4,
+                   anchor="center")
         self._widgets.append((label, "label"))
 
     def add_button(self, text: str, fn_name: str) -> None:
@@ -221,7 +229,8 @@ class Visuals:
                 padx=16, pady=6,
                 borderwidth=0, highlightthickness=0,
             )
-            btn.pack(pady=4, fill="x", padx=30)
+            btn.pack(pady=self._spacing if self._spacing is not None else 4,
+                     fill="x", padx=30)
         self._widgets.append((btn, "button"))
 
         def _on_enter(e):
@@ -276,8 +285,11 @@ class Visuals:
             widget.destroy()
         self._turtle = None
         self._canvas = None
+        self._game_canvas = None
         self._flow_frame = None
         self._flow_count = 0
+        self._grid_columns = None
+        self._image_refs.clear()
         self._widgets.clear()
 
     def set_title(self, title: str) -> None:
@@ -378,6 +390,273 @@ class Visuals:
         self._ensure_tk()
         from tkinter import messagebox
         messagebox.showerror("E++", text)
+
+    # ── Real-time canvas ─────────────────────────────────────────────
+
+    def ensure_root(self):
+        """Create the Tk root if needed and hand it out (used by realtime.py)."""
+        self._ensure_tk()
+        return self._root
+
+    def add_canvas(self, name: str, width: int, height: int) -> None:
+        self._ensure_tk()
+        import tkinter as tk
+        canvas = tk.Canvas(
+            self._frame, width=width, height=height,
+            bg="#181825", highlightthickness=1, highlightbackground="#45475a",
+        )
+        canvas.pack(pady=6)
+        self._game_canvas = canvas
+        self._interpreter.globals.define(f"__canvas_{name}", canvas)
+
+    def get_game_canvas(self):
+        """Return the drawing surface, creating a default 800x600 one if needed."""
+        self._ensure_tk()
+        if self._game_canvas is None:
+            self.add_canvas("canvas", 800, 600)
+        return self._game_canvas
+
+    # ── More input widgets ───────────────────────────────────────────
+
+    def add_checkbox(self, name: str, label: str) -> None:
+        self._ensure_tk()
+        import tkinter as tk
+        var = tk.BooleanVar(self._root, value=False)
+        box = tk.Checkbutton(
+            self._frame, text=label, variable=var,
+            fg=self._text_color, bg=self._bg_color,
+            activeforeground=self._text_color, activebackground=self._bg_color,
+            selectcolor="#313244",
+            font=self._font(), relief="flat", highlightthickness=0,
+            borderwidth=0, anchor="w",
+        )
+        box.pack(pady=4, anchor="w", padx=30)
+        self._widgets.append((box, "checkbox"))
+        self._interpreter.globals.define(f"__checkbox_{name}", var)
+
+    def checkbox_value(self, name: str) -> bool:
+        var = self._interpreter.globals.get(f"__checkbox_{name}", 0)
+        return bool(var.get())
+
+    def add_radio_group(self, name: str, options: list[str]) -> None:
+        self._ensure_tk()
+        import tkinter as tk
+        var = tk.StringVar(self._root, value=options[0] if options else "")
+        group = tk.Frame(self._frame, bg=self._bg_color)
+        for option in options:
+            btn = tk.Radiobutton(
+                group, text=option, variable=var, value=option,
+                fg=self._text_color, bg=self._bg_color,
+                activeforeground=self._text_color, activebackground=self._bg_color,
+                selectcolor="#313244",
+                font=self._font(), relief="flat", highlightthickness=0,
+                borderwidth=0, anchor="w",
+            )
+            btn.pack(anchor="w")
+        group.pack(pady=4, anchor="w", padx=30)
+        self._widgets.append((group, "radio"))
+        self._interpreter.globals.define(f"__radio_{name}", var)
+
+    def radio_group_value(self, name: str) -> str:
+        var = self._interpreter.globals.get(f"__radio_{name}", 0)
+        return str(var.get())
+
+    def add_slider(self, name: str, low: float, high: float) -> None:
+        self._ensure_tk()
+        import tkinter as tk
+        slider = tk.Scale(
+            self._frame, from_=low, to=high, orient="horizontal",
+            fg=self._text_color, bg=self._bg_color,
+            activebackground=_DEFAULT_ACCENT, troughcolor="#313244",
+            font=self._font(), relief="flat", highlightthickness=0,
+            borderwidth=0, showvalue=True,
+        )
+        slider.pack(pady=4, fill="x", padx=30)
+        self._widgets.append((slider, "slider"))
+        self._interpreter.globals.define(f"__slider_{name}", slider)
+
+    def slider_value(self, name: str) -> float:
+        slider = self._interpreter.globals.get(f"__slider_{name}", 0)
+        return float(slider.get())
+
+    def add_image(self, name: str, file_path: str) -> None:
+        self._ensure_tk()
+        import tkinter as tk
+        photo = None
+        try:
+            photo = tk.PhotoImage(file=file_path)
+        except Exception:
+            photo = None
+        if photo is None:
+            label = tk.Label(
+                self._frame, text=f"[image {name} not found]",
+                fg=self._text_color, bg=self._bg_color, font=self._font(),
+            )
+        else:
+            label = tk.Label(self._frame, image=photo, bg=self._bg_color,
+                             borderwidth=0, highlightthickness=0)
+            label.image = photo  # extra guard against garbage collection
+            self._image_refs.append(photo)
+            self._interpreter.globals.define(f"__image_{name}", photo)
+        label.pack(pady=6, anchor="center")
+        self._widgets.append((label, "image"))
+
+    # ── Menus ────────────────────────────────────────────────────────
+
+    def _ensure_menubar(self):
+        import tkinter as tk
+        if self._menubar is None:
+            self._menubar = tk.Menu(
+                self._root,
+                bg=_DEFAULT_BTN_BG, fg=self._text_color,
+                activebackground=_DEFAULT_BTN_HOVER,
+                activeforeground=self._text_color,
+                relief="flat", borderwidth=0,
+            )
+            self._root.configure(menu=self._menubar)
+        return self._menubar
+
+    def _ensure_menu(self, name: str):
+        import tkinter as tk
+        menubar = self._ensure_menubar()
+        menu = self._menus.get(name)
+        if menu is None:
+            menu = tk.Menu(
+                menubar, tearoff=0,
+                bg=_DEFAULT_BTN_BG, fg=self._text_color,
+                activebackground=_DEFAULT_BTN_HOVER,
+                activeforeground=self._text_color,
+                relief="flat", borderwidth=0,
+            )
+            menubar.add_cascade(label=name, menu=menu)
+            self._menus[name] = menu
+        return menu
+
+    def add_menu(self, name: str, options: list[str]) -> None:
+        self._ensure_tk()
+        menu = self._ensure_menu(name)
+        for option in options:
+            menu.add_command(label=option, command=lambda: None)
+
+    def add_menu_item(self, item: str, menu: str, fn_name: str) -> None:
+        self._ensure_tk()
+        import tkinter as tk
+        target = self._ensure_menu(menu)
+
+        def _on_select():
+            try:
+                self._interpreter.call_function_by_name(fn_name)
+            except tk.TclError:
+                pass
+
+        wanted = " ".join(item.split()).lower()
+        try:
+            last = target.index("end")
+        except tk.TclError:
+            last = None
+        if last is not None:
+            for index in range(last + 1):
+                try:
+                    label = target.entrycget(index, "label")
+                except tk.TclError:
+                    continue
+                if " ".join(str(label).split()).lower() == wanted:
+                    target.entryconfigure(index, command=_on_select)
+                    return
+        target.add_command(label=item, command=_on_select)
+
+    # ── Layout ───────────────────────────────────────────────────────
+
+    def arrange_grid(self, columns: int) -> None:
+        self._ensure_tk()
+        import tkinter as tk
+        columns = max(1, int(columns))
+        self._grid_columns = columns
+        pad = self._spacing if self._spacing is not None else 4
+        for index, (widget, _kind) in enumerate(self._widgets):
+            try:
+                widget.pack_forget()
+                widget.grid(row=index // columns, column=index % columns,
+                            sticky="nsew", padx=pad, pady=pad)
+            except tk.TclError:
+                pass
+        for column in range(columns):
+            try:
+                self._frame.grid_columnconfigure(column, weight=1)
+            except tk.TclError:
+                pass
+
+    def add_spacing(self, amount: int) -> None:
+        self._ensure_tk()
+        import tkinter as tk
+        amount = max(0, int(amount))
+        self._spacing = amount
+        for widget, _kind in self._widgets:
+            try:
+                if self._grid_columns is not None:
+                    widget.grid_configure(padx=amount, pady=amount)
+                else:
+                    widget.pack_configure(padx=amount, pady=amount)
+            except tk.TclError:
+                pass
+
+    def align_widget(self, kind: str, name: str, alignment: str) -> None:
+        self._ensure_tk()
+        import tkinter as tk
+        anchors = {"left": "w", "center": "center", "right": "e"}
+        justifies = {"left": "left", "center": "center", "right": "right"}
+        key = alignment.strip().lower()
+        anchor = anchors.get(key, "center")
+        justify = justifies.get(key, "center")
+
+        widget = None
+        if kind == "text box":
+            try:
+                widget = self._interpreter.globals.get(f"__textbox_{name}", 0)
+            except Exception:
+                widget = None
+        else:
+            wanted = " ".join(name.split()).lower()
+            for candidate, candidate_kind in self._widgets:
+                if candidate_kind != kind:
+                    continue
+                try:
+                    text = candidate.cget("text")
+                except tk.TclError:
+                    continue
+                if " ".join(str(text).split()).lower() == wanted:
+                    widget = candidate
+                    break
+        if widget is None:
+            return
+        try:
+            widget.configure(anchor=anchor)
+        except tk.TclError:
+            pass
+        try:
+            widget.configure(justify=justify)
+        except tk.TclError:
+            pass
+        try:
+            widget.pack_configure(anchor=anchor)
+        except tk.TclError:
+            pass
+
+    # ── Dialogs ──────────────────────────────────────────────────────
+
+    def ask_yes_or_no(self, message: str) -> bool:
+        self._ensure_tk()
+        from tkinter import messagebox
+        return bool(messagebox.askyesno("E++", message))
+
+    def ask_for_file(self, mode: str) -> str:
+        self._ensure_tk()
+        from tkinter import filedialog
+        if mode == "save":
+            path = filedialog.asksaveasfilename()
+        else:
+            path = filedialog.askopenfilename()
+        return path or ""
 
     # ── Turtle commands ──────────────────────────────────────────────
 

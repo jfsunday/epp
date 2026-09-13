@@ -5,12 +5,20 @@ from __future__ import annotations
 import json
 import mimetypes
 import os
+import secrets
 import threading
+from http.cookies import SimpleCookie
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from socketserver import ThreadingMixIn
 from urllib.parse import urlparse, parse_qs
 
 from .builtins import format_value
+
+# Maximum accepted request body size (25 MB)
+MAX_BODY_SIZE = 25 * 1024 * 1024
+
+# Name of the cookie carrying the server side session id
+SESSION_COOKIE = "epp_session"
 
 
 class _ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
@@ -32,6 +40,88 @@ def _to_json(value: object) -> object:
     return str(value)
 
 
+def _parse_cookie_header(raw: str | None) -> dict[str, str]:
+    """Parse a raw Cookie header into a plain {name: value} dict."""
+    cookies: dict[str, str] = {}
+    if not raw:
+        return cookies
+    jar = SimpleCookie()
+    try:
+        jar.load(raw)
+    except Exception:
+        return cookies
+    for name, morsel in jar.items():
+        cookies[name] = morsel.value
+    return cookies
+
+
+def _disposition_param(header: str, key: str) -> str | None:
+    """Read a single parameter (e.g. name / filename) from a header line."""
+    for part in header.split(";")[1:]:
+        part = part.strip()
+        if "=" not in part:
+            continue
+        raw_key, _, raw_value = part.partition("=")
+        if raw_key.strip().lower() == key:
+            return raw_value.strip().strip('"')
+    return None
+
+
+def _boundary_of(content_type: str) -> str | None:
+    """Extract the multipart boundary from a Content-Type header."""
+    for part in content_type.split(";")[1:]:
+        part = part.strip()
+        if part.lower().startswith("boundary="):
+            value = part[len("boundary="):].strip()
+            return value.strip('"') or None
+    return None
+
+
+def _parse_multipart(body: bytes, content_type: str) -> tuple[dict[str, str], dict[str, dict]]:
+    """Parse a multipart/form-data body into (form fields, uploaded files).
+
+    Implemented by hand because the `cgi` module is gone in Python 3.13+.
+    """
+    form: dict[str, str] = {}
+    files: dict[str, dict] = {}
+    boundary = _boundary_of(content_type)
+    if not boundary:
+        return form, files
+
+    delimiter = b"--" + boundary.encode("latin-1")
+    for chunk in body.split(delimiter):
+        if chunk.startswith(b"\r\n"):
+            chunk = chunk[2:]
+        if not chunk or chunk.startswith(b"--"):
+            continue  # preamble or closing delimiter
+        if b"\r\n\r\n" not in chunk:
+            continue
+        raw_headers, _, content = chunk.partition(b"\r\n\r\n")
+        if content.endswith(b"\r\n"):
+            content = content[:-2]
+
+        headers: dict[str, str] = {}
+        for line in raw_headers.decode("utf-8", "replace").split("\r\n"):
+            if ":" in line:
+                key, _, value = line.partition(":")
+                headers[key.strip().lower()] = value.strip()
+
+        disposition = headers.get("content-disposition", "")
+        name = _disposition_param(disposition, "name")
+        if name is None:
+            continue
+        filename = _disposition_param(disposition, "filename")
+        if filename is None:
+            form[name] = content.decode("utf-8", "replace")
+        else:
+            files[name] = {
+                "filename": filename,
+                "content": content,
+                "content type": headers.get("content-type", "application/octet-stream"),
+            }
+    return form, files
+
+
 class EppWebserver:
     """Simple HTTP server that dispatches to E++ handler functions."""
 
@@ -42,6 +132,10 @@ class EppWebserver:
         self._lock = threading.Lock()
         self._cors = False
         self._static_folder: str | None = None
+        self._sessions: dict[str, dict] = {}
+        self._session_lock = threading.Lock()
+        self._middleware = None
+        self._websockets = None
 
     def add_route(self, method: str, path: str, handler_name: str, params: list[str] | None = None) -> None:
         self.routes.append((method.upper(), path, handler_name, params or []))
@@ -51,6 +145,65 @@ class EppWebserver:
 
     def set_static_folder(self, folder: str) -> None:
         self._static_folder = folder
+
+    def set_middleware(self, fn) -> None:
+        """Register a callable fn(request) that runs before every route handler."""
+        self._middleware = fn
+
+    # ------------------------------------------------------------------
+    # Sessions
+    # ------------------------------------------------------------------
+
+    def _lookup_session(self, sid: str | None) -> dict | None:
+        if not sid:
+            return None
+        with self._session_lock:
+            return self._sessions.get(sid)
+
+    def start_session(self, request: dict) -> dict:
+        """Return the session for *request*, creating one if necessary."""
+        cookies = request.get("__cookies")
+        sid = cookies.get(SESSION_COOKIE) if isinstance(cookies, dict) else None
+        if not sid:
+            known = request.get("__session_id")
+            sid = known if isinstance(known, str) else None
+
+        session = self._lookup_session(sid)
+        if session is not None:
+            request["__session"] = session
+            request["__session_id"] = sid
+            return session
+
+        sid = secrets.token_urlsafe(24)
+        session = {}
+        with self._session_lock:
+            self._sessions[sid] = session
+        request["__session"] = session
+        request["__session_id"] = sid
+
+        cookies_out = getattr(self.interpreter, "_web_cookies", None)
+        if cookies_out is None:
+            cookies_out = []
+            self.interpreter._web_cookies = cookies_out
+        cookies_out.append((SESSION_COOKIE, sid))
+        return session
+
+    # ------------------------------------------------------------------
+    # Websockets
+    # ------------------------------------------------------------------
+
+    def _get_hub(self):
+        """Create the websocket hub on first use (lazy import)."""
+        if self._websockets is None:
+            from .websocket import WebsocketHub
+            self._websockets = WebsocketHub(self.interpreter)
+        return self._websockets
+
+    def get_websocket_hub(self):
+        return self._get_hub()
+
+    def add_websocket_route(self, path: str, handler_name: str) -> None:
+        self._get_hub().add_route(path, handler_name)
 
     def _match_route(self, method: str, path: str) -> tuple[str | None, dict[str, str]]:
         """Match request to a route, supporting path parameters."""
@@ -147,6 +300,13 @@ class EppWebserver:
         parsed = urlparse(handler.path)
         path = parsed.path
 
+        # Websocket upgrade takes precedence over everything else
+        if method == "GET" and self._websockets is not None:
+            hub = self._websockets
+            if hub.has_route(path):
+                if hub.handle_upgrade(handler, path):
+                    return
+
         # Handle CORS preflight
         if method == "OPTIONS" and self._cors:
             handler.send_response(204)
@@ -187,23 +347,66 @@ class EppWebserver:
             flat_query[k] = val if isinstance(val, str) else v[0]
         request["__query_params"] = flat_query
 
+        # Cookies
+        cookies = _parse_cookie_header(handler.headers.get("Cookie"))
+        request["__cookies"] = cookies
+
+        # Existing session (do not create a new one here)
+        sid = cookies.get(SESSION_COOKIE)
+        session = self._lookup_session(sid)
+        if session is not None:
+            request["__session"] = session
+            request["__session_id"] = sid
+
+        # Form fields and uploads are always present, even when empty
+        request["__form"] = {}
+        request["__files"] = {}
+
         # Body for POST/PUT
         if method in ("POST", "PUT"):
-            content_length = int(handler.headers.get("Content-Length", 0))
+            try:
+                content_length = int(handler.headers.get("Content-Length", 0) or 0)
+            except ValueError:
+                content_length = 0
+            if content_length > MAX_BODY_SIZE:
+                handler.close_connection = True
+                handler.send_response(413)
+                if self._cors:
+                    self._add_cors_headers(handler)
+                handler.send_header("Content-Type", "text/plain")
+                handler.end_headers()
+                handler.wfile.write(b"Payload Too Large")
+                return
             if content_length:
-                body = handler.rfile.read(content_length).decode()
-                request["body"] = body
-                try:
-                    request["data"] = json.loads(body)
-                except (json.JSONDecodeError, ValueError):
-                    pass
+                raw_body = handler.rfile.read(content_length)
+                raw_content_type = handler.headers.get("Content-Type", "") or ""
+                base_type = raw_content_type.split(";")[0].strip().lower()
+                if base_type == "multipart/form-data":
+                    form, files = _parse_multipart(raw_body, raw_content_type)
+                    request["__form"] = form
+                    request["__files"] = files
+                else:
+                    body = raw_body.decode("utf-8", "replace")
+                    request["body"] = body
+                    if base_type == "application/x-www-form-urlencoded":
+                        request["__form"] = {
+                            k: v[0] for k, v in parse_qs(body, keep_blank_values=True).items() if v
+                        }
+                    try:
+                        request["data"] = json.loads(body)
+                    except (json.JSONDecodeError, ValueError):
+                        pass
 
         with self._lock:
             self.interpreter._web_response = None
             self.interpreter._web_status = 200
             self.interpreter._web_content_type = None
+            self.interpreter._web_cookies = []
             try:
-                self.interpreter.call_function_with_values(fn_name, [request])
+                if self._middleware is not None:
+                    self._middleware(request)
+                if self.interpreter._web_response is None:
+                    self.interpreter.call_function_with_values(fn_name, [request])
             except Exception as e:
                 error_msg = str(e)
                 response = None
@@ -221,6 +424,7 @@ class EppWebserver:
             response = self.interpreter._web_response
             status = self.interpreter._web_status
             custom_content_type = self.interpreter._web_content_type
+            response_cookies = list(getattr(self.interpreter, "_web_cookies", None) or [])
 
         if response is None:
             response = ""
@@ -244,6 +448,8 @@ class EppWebserver:
             self._add_cors_headers(handler)
         handler.send_header("Content-Type", content_type)
         handler.send_header("Content-Length", str(len(body_bytes)))
+        for cookie_name, cookie_value in response_cookies:
+            handler.send_header("Set-Cookie", f"{cookie_name}={cookie_value}; Path=/")
         handler.end_headers()
         handler.wfile.write(body_bytes)
 
@@ -256,5 +462,10 @@ class EppWebserver:
             self.server.shutdown()
 
     def stop(self) -> None:
+        if self._websockets is not None:
+            try:
+                self._websockets.close_all()
+            except Exception:
+                pass
         if self.server:
             self.server.shutdown()

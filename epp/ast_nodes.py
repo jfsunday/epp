@@ -758,3 +758,319 @@ class RunCommandStmt:
     command: Any
     background: bool
     line: int
+
+
+# ── Realtime: Ticks, Keys, Mouse ──────────────────────────────────
+
+@dataclass
+class EveryStmt:
+    interval: Any  # milliseconds
+    body: list[Any]
+    line: int
+
+
+@dataclass
+class StopTickingStmt:
+    line: int
+
+
+@dataclass
+class KeyPressedExpr:
+    key: str
+    line: int
+
+
+@dataclass
+class WhenKeyStmt:
+    key: str
+    body: list[Any]
+    line: int
+
+
+@dataclass
+class WhenMouseStmt:
+    event: str  # clicked, moved
+    body: list[Any]
+    line: int
+
+
+@dataclass
+class MouseCoordExpr:
+    axis: str  # x, y
+    line: int
+
+
+# ── Realtime: Sprites ─────────────────────────────────────────────
+
+@dataclass
+class AddSpriteStmt:
+    name: str
+    image: Any
+    line: int
+
+
+@dataclass
+class SetSpritePositionStmt:
+    name: str
+    x: Any
+    y: Any
+    line: int
+
+
+@dataclass
+class MoveSpriteStmt:
+    name: str
+    dx: Any
+    dy: Any
+    line: int
+
+
+@dataclass
+class SpriteCoordExpr:
+    name: str
+    axis: str  # x, y
+    line: int
+
+
+@dataclass
+class SpriteCollidesExpr:
+    left: str
+    right: str
+    line: int
+
+
+@dataclass
+class RemoveSpriteStmt:
+    name: str
+    line: int
+
+
+# ── Realtime: Canvas Shapes ───────────────────────────────────────
+
+@dataclass
+class AddCanvasStmt:
+    name: str
+    width: Any
+    height: Any
+    line: int
+
+
+@dataclass
+class DrawRectangleStmt:
+    x: Any
+    y: Any
+    width: Any
+    height: Any
+    color: Any
+    line: int
+
+
+@dataclass
+class DrawCanvasCircleStmt:
+    x: Any
+    y: Any
+    radius: Any
+    color: Any
+    line: int
+
+
+@dataclass
+class DrawCanvasTextStmt:
+    text: Any
+    x: Any
+    y: Any
+    color: Any
+    line: int
+
+
+@dataclass
+class ClearCanvasStmt:
+    line: int
+
+
+# ── Web: Cookies and Sessions ─────────────────────────────────────
+
+@dataclass
+class SetCookieStmt:
+    cookie_name: str
+    request_var: str
+    value: Any
+    line: int
+
+
+@dataclass
+class CookieExpr:
+    cookie_name: str
+    request_var: str
+    line: int
+
+
+@dataclass
+class StartSessionStmt:
+    request_var: str
+    line: int
+
+
+@dataclass
+class SetSessionValueStmt:
+    key: str
+    request_var: str
+    value: Any
+    line: int
+
+
+@dataclass
+class SessionValueExpr:
+    key: str
+    request_var: str
+    line: int
+
+
+# ── Web: Forms, Uploads, Templates ────────────────────────────────
+
+@dataclass
+class FormValueExpr:
+    field_name: str
+    request_var: str
+    line: int
+
+
+@dataclass
+class UploadedFileExpr:
+    field_name: str
+    request_var: str
+    line: int
+
+
+@dataclass
+class ReplacePlaceholderExpr:
+    text: Any
+    placeholder: str
+    value: Any
+    line: int
+
+
+# ── Web: WebSockets and Middleware ────────────────────────────────
+
+@dataclass
+class AddWebsocketRouteStmt:
+    path: str
+    handler_name: str
+    line: int
+
+
+@dataclass
+class SendToConnectionStmt:
+    value: Any
+    connection: str
+    line: int
+
+
+@dataclass
+class BroadcastStmt:
+    value: Any
+    line: int
+
+
+@dataclass
+class BeforeRequestStmt:
+    body: list[Any]
+    line: int
+
+
+# ── GUI: Input Widgets ────────────────────────────────────────────
+
+@dataclass
+class AddCheckboxStmt:
+    name: str
+    label: Any
+    line: int
+
+
+@dataclass
+class CheckboxValueExpr:
+    name: str
+    line: int
+
+
+@dataclass
+class AddRadioGroupStmt:
+    name: str
+    options: list[str]
+    line: int
+
+
+@dataclass
+class RadioGroupValueExpr:
+    name: str
+    line: int
+
+
+@dataclass
+class AddSliderStmt:
+    name: str
+    low: Any
+    high: Any
+    line: int
+
+
+@dataclass
+class SliderValueExpr:
+    name: str
+    line: int
+
+
+@dataclass
+class AddImageStmt:
+    name: str
+    file_path: Any
+    line: int
+
+
+# ── GUI: Menus, Layout, Dialogs ───────────────────────────────────
+
+@dataclass
+class AddMenuStmt:
+    name: str
+    options: list[str]
+    line: int
+
+
+@dataclass
+class AddMenuItemStmt:
+    item: str
+    menu: str
+    fn_name: str
+    line: int
+
+
+@dataclass
+class ArrangeGridStmt:
+    columns: Any
+    line: int
+
+
+@dataclass
+class AddSpacingStmt:
+    amount: Any
+    line: int
+
+
+@dataclass
+class AlignWidgetStmt:
+    kind: str  # label, button, text box
+    name: str
+    alignment: str  # left, center, right
+    line: int
+
+
+@dataclass
+class AskYesNoStmt:
+    message: Any
+    line: int
+
+
+@dataclass
+class AskFileStmt:
+    mode: str  # open, save
+    line: int

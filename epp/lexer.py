@@ -8,6 +8,27 @@ from .tokens import Token, TokenKind
 from .errors import EppLexError
 
 
+_MAX_EXTENSION_LEN = 5
+
+
+def _file_extension_end(source: str, i: int) -> int | None:
+    """If a file extension starts at i, return the index just past it.
+
+    A file extension is a dot immediately followed by one to five lowercase
+    letters or digits, e.g. the ".png" in "bird.png". Sentence-ending periods
+    never match because E++ statements start with a capital letter.
+    """
+    end = None
+    while i < len(source) and source[i] == '.':
+        j = i + 1
+        while j < len(source) and (source[j].islower() or source[j].isdigit()):
+            j += 1
+        if j == i + 1 or j - i - 1 > _MAX_EXTENSION_LEN:
+            break
+        end = i = j
+    return end
+
+
 def lex(source: str) -> list[Token]:
     """Tokenize E++ source code into a list of Tokens."""
     tokens: list[Token] = []
@@ -67,6 +88,9 @@ def lex(source: str) -> list[Token]:
             start = i
             while i < length and (source[i].isalpha() or source[i] == "'"):
                 i += 1
+            end = _file_extension_end(source, i)
+            if end is not None:
+                i = end
             tokens.append(Token(TokenKind.WORD, source[start:i], line))
             continue
 
