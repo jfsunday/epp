@@ -1,0 +1,41 @@
+Note, a login flow with a form, a session and a cookie.
+Note, start it, then open localhost 8090 in your browser.
+Note, run this from the project folder so that the pages are found.
+
+Let visits be 0.
+
+Before every request, do the following.
+Add 1 to visits.
+End before.
+
+Define show form that takes request, do the following.
+Read the file examples slash login.html and store it in page.
+Set content type to html.
+Respond with the value of page.
+End define.
+
+Define handle login that takes request, do the following.
+Let user be the form value username of request.
+Start a session for request.
+Set the session value name in request to the value of user.
+Set the cookie username of request to the value of user.
+Respond with Welcome to your account.
+End define.
+
+Define show profile that takes request, do the following.
+Let who be the session value name of request.
+Let remembered be the cookie username of request.
+Create a dictionary called profile.
+Set the entry session name in profile to the value of who.
+Set the entry cookie name in profile to the value of remembered.
+Set the entry requests so far in profile to the value of visits.
+Respond with the value of profile.
+End define.
+
+Add route GET slash to show form.
+Add route POST slash login to handle login.
+Add route GET slash profile to show profile.
+
+Start a webserver on port 8090.
+Say Open localhost 8090 in your browser.
+Wait for connections.

@@ -1,0 +1,38 @@
+Let counter be 1.
+Let output be empty.
+Ask for stoppoint with the message When should the programm stop.
+Define devidable that takes number,
+    If the value of counter remainder number is equal to 0,
+        Return 1.
+    Otherwise,
+        Return 0.
+    End if.
+End define.
+Create a dictionary called combinations.
+Let finished be 0.
+Set the entry 3 in combinations to Fizz.
+Set the entry 5 in combinations to Buzz.
+While the value of finished is not equal to 1,
+    Ask for go on with the message Type 1 for skipping combination adding and 2 to add a combination.
+    If the value of go on is equal to 1,
+        Set finished to 1.
+    Otherwise,
+        Ask for addnum with the message Which number do you want to Add.
+        Ask for addword with the message Which word should the numbre have.
+        Set the entry the value of addnum in combinations to the value of addword.
+    End if.
+End while.
+While the value of counter is less than or equal to the value of stoppoint,
+    For each num and word in combinations,
+        Call devidable with the number of num and store the result in result.
+        If the value of result is equal to 1,
+            Set output to the value of output plus the value of word.
+        End if.
+    End for each.
+    If the value of output is empty,
+        Set output to the value of counter.
+    End if.
+    Say the value of output.
+    Set output to empty.
+    Add 1 to counter.
+End while.

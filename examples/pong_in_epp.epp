@@ -1,0 +1,91 @@
+Note, a complete Pong game written in E plus plus itself.
+Note, move your paddle with the arrow keys up and down.
+Note, the ball speeds up a little every time you hit it.
+
+Open window with title Pong.
+Add canvas board with width 600 and height 400.
+
+Let ball x be 300.
+Let ball y be 200.
+Let ball speed x be 5.
+Let ball speed y be 3.
+Let player y be 160.
+Let robot y be 160.
+Let score be 0.
+Let lives be 3.
+
+Every 20 milliseconds, do the following.
+
+Note, move the player paddle.
+If key arrow up is pressed, do the following.
+Subtract 8 from player y.
+End if.
+If key arrow down is pressed, do the following.
+Add 8 to player y.
+End if.
+If the value of player y is less than 0, do the following.
+Set player y to 0.
+End if.
+If the value of player y is greater than 320, do the following.
+Set player y to 320.
+End if.
+
+Note, the robot paddle follows the ball slowly.
+If the value of robot y plus 40 is less than ball y, do the following.
+Add 4 to robot y.
+End if.
+If the value of robot y plus 40 is greater than ball y, do the following.
+Subtract 4 from robot y.
+End if.
+
+Note, move the ball.
+Add the value of ball speed x to ball x.
+Add the value of ball speed y to ball y.
+If the value of ball y is less than 5, do the following.
+Set ball speed y to 0 minus ball speed y.
+End if.
+If the value of ball y is greater than 395, do the following.
+Set ball speed y to 0 minus ball speed y.
+End if.
+
+Note, bounce off the player paddle on the left.
+If the value of ball x is less than 30, do the following.
+If the value of ball y is greater than player y, do the following.
+If the value of ball y is less than player y plus 80, do the following.
+Set ball speed x to 0 minus ball speed x.
+Add 1 to score.
+End if.
+End if.
+End if.
+
+Note, bounce off the robot paddle on the right.
+If the value of ball x is greater than 570, do the following.
+Set ball speed x to 0 minus ball speed x.
+End if.
+
+Note, a miss on the left costs one life.
+If the value of ball x is less than 0, do the following.
+Subtract 1 from lives.
+Set ball x to 300.
+Set ball y to 200.
+Say Lives left.
+Say the value of lives.
+End if.
+
+Note, redraw everything.
+Clear canvas.
+Draw rectangle at 10 by the value of player y with width 12 and height 80 and color green.
+Draw rectangle at 578 by the value of robot y with width 12 and height 80 and color red.
+Draw circle at the value of ball x by the value of ball y with radius 8 and color yellow.
+Draw text Score at 60 by 20 with color white.
+Draw text the value of score at 120 by 20 with color white.
+
+If the value of lives is less than 1, do the following.
+Clear canvas.
+Draw text Game over at 300 by 200 with color red.
+Say Game over.
+Say the value of score.
+Stop ticking.
+End if.
+
+End every.

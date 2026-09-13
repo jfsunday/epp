@@ -1,0 +1,18 @@
+Note, a tick loop that counts upwards and stops on its own.
+Note, ticks are driven by the window, so the program stays alive by itself.
+
+Open window with title Ticker.
+Add canvas board with width 300 and height 120.
+
+Let count be 0.
+
+Every 200 milliseconds, do the following.
+Add 1 to count.
+Clear canvas.
+Draw text the value of count at 150 by 60 with color white.
+Say the value of count.
+If the value of count is greater than 9, do the following.
+Say Done counting.
+Stop ticking.
+End if.
+End every.

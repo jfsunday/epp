@@ -1,0 +1,25 @@
+Note, checkboxes, radio groups, sliders, images and grid layout.
+Note, press the button to read every widget value at once.
+
+Open window with title Settings.
+Set window size to 460 by 460.
+
+Add label Choose your settings.
+Add image logo from the file examples slash images slash logo.png.
+Add checkbox agree with label I agree to the rules.
+Add radio group difficulty with options Easy, Medium, Hard.
+Add slider volume from 0 to 100.
+Add button with text Show settings that calls show settings.
+Add spacing 8 around all widgets.
+Align label Choose your settings to the center.
+
+Define show settings, do the following.
+Let picked be the radio group difficulty.
+Let loudness be the slider volume.
+Let accepted be the checkbox agree.
+Say the value of picked.
+Say the value of loudness.
+Say the value of accepted.
+End define.
+
+Wait for close.

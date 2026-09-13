@@ -1,0 +1,26 @@
+Note, a menu bar, dialogs and mouse events in one small program.
+Note, click anywhere on the canvas to draw a dot.
+
+Open window with title Menus and mouse.
+Add canvas board with width 400 and height 260.
+
+Add menu File with options New.
+Add menu item Save in File that calls save drawing.
+Add menu item Quit in File that calls quit drawing.
+
+When the mouse is clicked, do the following.
+Draw circle at the mouse x by the mouse y with radius 6 and color pink.
+End when.
+
+Define save drawing, do the following.
+Ask yes or no with the message Do you want to save your drawing.
+If answer is yes, do the following.
+Ask for a file to save as.
+Say the value of chosen file.
+End if.
+End define.
+
+Define quit drawing, do the following.
+Say Goodbye.
+Stop ticking.
+End define.

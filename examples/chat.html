@@ -1,0 +1,23 @@
+<!doctype html>
+<html>
+  <head><title>E++ chat</title></head>
+  <body>
+    <h1>E++ chat</h1>
+    <ul id="log"></ul>
+    <input id="text" placeholder="Say something">
+    <button onclick="send()">Send</button>
+    <script>
+      const socket = new WebSocket("ws://" + location.host + "/chat");
+      socket.onmessage = (event) => {
+        const item = document.createElement("li");
+        item.textContent = event.data;
+        document.getElementById("log").appendChild(item);
+      };
+      function send() {
+        const box = document.getElementById("text");
+        socket.send(box.value);
+        box.value = "";
+      }
+    </script>
+  </body>
+</html>

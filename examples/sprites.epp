@@ -1,0 +1,25 @@
+Note, sprites with real images, movement and collision detection.
+Note, run this from the project folder so that the images are found.
+
+Open window with title Sprites.
+Add canvas board with width 480 and height 320.
+
+Add sprite bird with image examples slash images slash bird.png.
+Add sprite pipe with image examples slash images slash pipe.png.
+
+Set position of bird to 40 by 140.
+Set position of pipe to 400 by 120.
+
+Every 30 milliseconds, do the following.
+Move sprite bird by 3 by 0.
+Move sprite pipe by 0 by 0.
+If sprite bird collides with sprite pipe, do the following.
+Say The bird hit the pipe.
+Remove sprite bird.
+Stop ticking.
+End if.
+If the x of bird is greater than 470, do the following.
+Say The bird escaped.
+Stop ticking.
+End if.
+End every.

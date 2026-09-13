@@ -1,0 +1,22 @@
+Note, a file upload that is written to disk unchanged.
+Note, start it, then open localhost 8091 in your browser.
+Note, run this from the project folder so that the pages are found.
+
+Define show form that takes request, do the following.
+Read the file examples slash upload.html and store it in page.
+Set content type to html.
+Respond with the value of page.
+End define.
+
+Define handle upload that takes request, do the following.
+Let data be the uploaded file avatar of request.
+Write the value of data to the file uploaded avatar.
+Respond with The file was saved.
+End define.
+
+Add route GET slash to show form.
+Add route POST slash upload to handle upload.
+
+Start a webserver on port 8091.
+Say Open localhost 8091 in your browser.
+Wait for connections.

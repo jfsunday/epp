@@ -1,0 +1,22 @@
+Note, a chat server built on websockets.
+Note, start it, then open localhost 8093 in two browser tabs.
+Note, run this from the project folder so that the page is found.
+
+Define show page that takes request, do the following.
+Read the file examples slash chat.html and store it in page.
+Set content type to html.
+Respond with the value of page.
+End define.
+
+Define handle chat that takes connection, do the following.
+Say Someone said something.
+Say the value of message.
+Broadcast the value of message to all connections.
+End define.
+
+Add route GET slash to show page.
+Add websocket route slash chat to handle chat.
+
+Start a webserver on port 8093.
+Say Open localhost 8093 in two browser tabs.
+Wait for connections.

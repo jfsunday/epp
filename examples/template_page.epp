@@ -1,0 +1,22 @@
+Note, filling an HTML template with placeholders.
+Note, the template understands both double and single curly braces.
+Note, run this from the project folder so that the template is found.
+
+Let visitors be 0.
+
+Define show page that takes request, do the following.
+Add 1 to visitors.
+Let name be the query parameter name of request.
+Read the file examples slash template.html and store it in page.
+Let page be the value of page with placeholder title replaced by My homepage.
+Let page be the value of page with placeholder name replaced by the value of name.
+Let page be the value of page with placeholder count replaced by the value of visitors.
+Set content type to html.
+Respond with the value of page.
+End define.
+
+Add route GET slash to show page.
+
+Start a webserver on port 8092.
+Say Open localhost 8092 in your browser and add a name to the address.
+Wait for connections.

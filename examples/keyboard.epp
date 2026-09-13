@@ -1,0 +1,23 @@
+Note, keyboard input, both as an event and as a question inside a tick.
+Note, press the arrow keys to move the box and the spacebar to jump.
+
+Open window with title Keyboard.
+Add canvas board with width 400 and height 200.
+
+Let x be 180.
+Let y be 90.
+
+When key spacebar is pressed, do the following.
+Say Jump.
+End when.
+
+Every 30 milliseconds, do the following.
+If key arrow left is pressed, do the following.
+Subtract 4 from x.
+End if.
+If key arrow right is pressed, do the following.
+Add 4 to x.
+End if.
+Clear canvas.
+Draw rectangle at the value of x by the value of y with width 30 and height 30 and color pink.
+End every.

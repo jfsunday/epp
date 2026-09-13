@@ -1,0 +1,19 @@
+Note, drawing rectangles, circles and text on a canvas.
+Note, the whole picture is redrawn on every tick.
+
+Open window with title Shapes.
+Add canvas board with width 400 and height 300.
+
+Let angle be 0.
+
+Every 40 milliseconds, do the following.
+Add 6 to angle.
+Clear canvas.
+Draw rectangle at 20 by 20 with width 360 and height 40 and color blue.
+Draw text Moving circle at 200 by 40 with color black.
+Draw circle at the value of angle by 160 with radius 25 and color yellow.
+Draw circle at 380 minus angle by 240 with radius 15 and color pink.
+If the value of angle is greater than 380, do the following.
+Set angle to 0.
+End if.
+End every.

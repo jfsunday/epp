@@ -1,0 +1,9 @@
+If the value of counter remainder 15 is equal to 0,
+        Say FizzBuzz.
+    Otherwise if the value of counter remainder 3 is equal to 0,
+        Say Fizz.
+    Otherwise if the value of counter remainder 5 is equal to 0,
+        Say Buzz.
+    Otherwise,
+        Say the value of counter.
+    End if.
