@@ -463,10 +463,17 @@ class Parser:
                     left = ast.Compare("eq", left, right, line)
                 elif self.at_word("not"):
                     self.advance()
-                    self.expect_word("equal")
-                    self.expect_word("to")
-                    right = self._parse_operand(stop_words)
-                    left = ast.Compare("ne", left, right, line)
+                    if self.at_word("empty"):
+                        self.advance()  # empty
+                        left = ast.Compare("not_empty", left, None, line)
+                    else:
+                        self.expect_word("equal")
+                        self.expect_word("to")
+                        right = self._parse_operand(stop_words)
+                        left = ast.Compare("ne", left, right, line)
+                elif self.at_word("empty"):
+                    self.advance()  # empty
+                    left = ast.Compare("empty", left, None, line)
                 elif self.at_word("greater"):
                     self.advance()
                     self.expect_word("than")
@@ -741,10 +748,14 @@ class Parser:
     # ── Individual Statement Parsers ─────────────────────────────────
 
     def _parse_let(self, line: int) -> ast.LetStmt:
-        """Let <name> be <value>."""
+        """Let <name> be <value>.  OR  Let <name> be empty."""
         self.advance()  # let
         name = self.read_identifier({"be"})
         self.expect_word("be")
+        if self.at_word("empty"):
+            self.advance()  # empty
+            self.skip_period()
+            return ast.LetStmt(name, ast.StringLit("", line), line)
         value = self.parse_value()
         self.skip_period()
         return ast.LetStmt(name, value, line)
@@ -862,6 +873,10 @@ class Parser:
 
         name = self.read_identifier({"to"})
         self.expect_word("to")
+        if self.at_word("empty"):
+            self.advance()  # empty
+            self.skip_period()
+            return ast.SetStmt(name, ast.StringLit("", line), line)
         value = self.parse_value()
         self.skip_period()
         return ast.SetStmt(name, value, line)
@@ -1411,10 +1426,15 @@ class Parser:
         return ast.RemoveValueStmt(name, value, line)
 
     def _parse_for_each(self, line: int) -> ast.ForEachStmt:
-        """For each VAR in LIST, do the following. ... End for each."""
+        """For each VAR in LIST, ... End for each.
+        For each KEY and VALUE in DICT, ... End for each."""
         self.advance()  # for
         self.expect_word("each")
-        var_name = self.read_identifier({"in"}, allow_keywords=True)
+        var_name = self.read_identifier({"in", "and"}, allow_keywords=True)
+        value_name = None
+        if self.at_word("and"):
+            self.advance()  # and
+            value_name = self.read_identifier({"in"}, allow_keywords=True)
         self.expect_word("in")
         list_name = self.read_identifier(set(), allow_keywords=True)
         self.expect_kind(TokenKind.COMMA)
@@ -1428,7 +1448,7 @@ class Parser:
         self.expect_word("each")
         self.skip_period()
 
-        return ast.ForEachStmt(var_name, list_name, body, line)
+        return ast.ForEachStmt(var_name, list_name, body, line, value_name)
 
     # ── Webserver Parsers ───────────────────────────────────────────
 
@@ -1636,9 +1656,23 @@ class Parser:
             return ast.ShowErrorStmt(text, line)
         raise EppParseError("expected 'message' or 'error' after 'Show'", line)
 
-    def _parse_run(self, line: int) -> ast.RunInBackgroundStmt:
-        """Run <function name> in background."""
+    def _parse_run(self, line: int) -> object:
+        """Run <function> in background. OR Run the command VALUE [in background]."""
         self.advance()  # run
+        if self.at_word("the"):
+            saved = self.pos
+            self.advance()  # the
+            if self.at_word("command"):
+                self.advance()  # command
+                command = self.parse_value({"in"})
+                background = False
+                if self.at_word("in"):
+                    self.advance()  # in
+                    self.expect_word("background")
+                    background = True
+                self.skip_period()
+                return ast.RunCommandStmt(command, background, line)
+            self.pos = saved  # backtrack
         name = self.read_identifier({"in"}, allow_keywords=True)
         self.expect_word("in")
         self.expect_word("background")

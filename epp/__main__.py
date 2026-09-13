@@ -1,5 +1,8 @@
 """Allow `python -m epp file.epp`."""
 
-from .main import main
+try:
+    from .main import main
+except ImportError:
+    from epp.main import main
 
 main()

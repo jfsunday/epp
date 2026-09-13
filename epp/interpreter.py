@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 import random as _random
+import subprocess as _subprocess
 import threading as _threading
 import time as _time
 from datetime import datetime as _datetime
@@ -102,9 +103,10 @@ class Interpreter:
             return left_str + right_str
 
         if node.op == "plus":
-            # Number + Number = Number; anything with str = concatenation
             if isinstance(left, str) or isinstance(right, str):
-                return format_value(left) + " " + format_value(right) if not isinstance(left, str) else str(left) + " " + format_value(right) if not isinstance(right, str) else str(left) + " " + str(right)
+                l = left if isinstance(left, str) else format_value(left)
+                r = right if isinstance(right, str) else format_value(right)
+                return l + r
             self._check_number(left, "left side of plus", node.line)
             self._check_number(right, "right side of plus", node.line)
             return left + right
@@ -129,6 +131,10 @@ class Interpreter:
 
     def _eval_Compare(self, node: ast.Compare, env: Environment) -> bool:
         left = self._eval(node.left, env)
+        if node.op == "empty":
+            return left == "" or left is None
+        elif node.op == "not_empty":
+            return left != "" and left is not None
         right = self._eval(node.right, env)
 
         if node.op == "eq":
@@ -278,6 +284,28 @@ class Interpreter:
         thread = _threading.Thread(target=_run, daemon=True)
         thread.start()
 
+    def _exec_RunCommandStmt(self, node: ast.RunCommandStmt, env: Environment) -> None:
+        """Run a shell command, optionally in background."""
+        command = str(self._eval(node.command, env))
+
+        if node.background:
+            def _run():
+                try:
+                    _subprocess.run(command, shell=True, check=False)
+                except Exception as e:
+                    self._say_fn(f"Command error: {e}")
+            thread = _threading.Thread(target=_run, daemon=True)
+            thread.start()
+        else:
+            try:
+                result = _subprocess.run(command, shell=True, capture_output=True, text=True, check=False)
+                if result.stdout.strip():
+                    self._say_fn(result.stdout.strip())
+                if result.returncode != 0 and result.stderr.strip():
+                    self._say_fn(f"Command error: {result.stderr.strip()}")
+            except Exception as e:
+                raise EppRuntimeError(f"failed to run command: {e}", node.line)
+
     # ── Data Structure Executors ──────────────────────────────────────
 
     def _exec_CreateListStmt(self, node: ast.CreateListStmt, env: Environment) -> None:
@@ -339,13 +367,24 @@ class Interpreter:
 
     def _exec_ForEachStmt(self, node: ast.ForEachStmt, env: Environment) -> None:
         collection = env.get(node.iterable_name, node.line)
-        if not isinstance(collection, list):
-            raise EppRuntimeError(f"'{node.iterable_name}' is not a list", node.line)
-        for item in collection:
+        if isinstance(collection, dict):
+            items = collection.items()
+        elif isinstance(collection, list):
+            if node.value_name:
+                raise EppRuntimeError(f"cannot use 'and' destructuring on a list, only on a dictionary", node.line)
+            items = ((item, None) for item in collection)
+        else:
+            raise EppRuntimeError(f"'{node.iterable_name}' is not a list or dictionary", node.line)
+        for key, value in items:
             if env.has(node.var_name):
-                env.set(node.var_name, item, node.line)
+                env.set(node.var_name, key, node.line)
             else:
-                env.define(node.var_name, item)
+                env.define(node.var_name, key)
+            if node.value_name:
+                if env.has(node.value_name):
+                    env.set(node.value_name, value, node.line)
+                else:
+                    env.define(node.value_name, value)
             for stmt in node.body:
                 self._exec(stmt, env)
 

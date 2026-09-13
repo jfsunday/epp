@@ -362,6 +362,7 @@ class ForEachStmt:
     iterable_name: str
     body: list[Any]
     line: int
+    value_name: str | None = None
 
 
 # ── Data Structure Expressions ──────────────────────────────────────
@@ -749,4 +750,11 @@ class ShowErrorStmt:
 @dataclass
 class RunInBackgroundStmt:
     name: str
+    line: int
+
+
+@dataclass
+class RunCommandStmt:
+    command: Any
+    background: bool
     line: int
