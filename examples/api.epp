@@ -1,11 +1,11 @@
 Note, Simple REST API example.
 
 Create a dictionary called greeting.
-Set the entry message in greeting to Hello from E++.
+Set the entry message in greeting to Hello from the E plus plus API.
 Set the entry version in greeting to 1.
 
 Define handle home that takes request,
-    Respond with Welcome to the E++ API.
+    Respond with Welcome to the E plus plus API.
 End define.
 
 Define handle api that takes request,
@@ -16,5 +16,5 @@ Start a webserver on port 8080.
 Add route GET slash to handle home.
 Add route GET slash api to handle api.
 
-Say Server ready. Visit localhost 8080.
+Say Server ready on localhost port 8080.
 Wait for connections.

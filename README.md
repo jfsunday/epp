@@ -341,13 +341,156 @@ Show message Success.
 Show error Something went wrong.
 ```
 
+### More Widgets, Menus and Dialogs
+
+```
+Add checkbox agree with label I agree to the rules.
+Add radio group difficulty with options Easy, Medium, Hard.
+Add slider volume from 0 to 100.
+Add image logo from the file examples slash images slash logo.png.
+
+Let accepted be the checkbox agree.
+Let picked be the radio group difficulty.
+Let loudness be the slider volume.
+
+Add menu File with options New, Open.
+Add menu item Quit in File that calls handle quit.
+
+Add spacing 8 around all widgets.
+Arrange widgets in a grid with 2 columns.
+Align label Welcome to the center.
+
+Ask yes or no with the message Do you want to save.
+Ask for a file to open.
+Ask for a file to save as.
+```
+
+`Ask yes or no` stores `yes` or `no` in `answer`. `Ask for a file` stores the path
+in `chosen file`. Alignment works for `label`, `button` and `text box`.
+
+In file paths the word `slash` stands for the folder separator, so
+`examples slash images slash logo.png` means `examples/images/logo.png`. The same
+works for `Read the file`, `Write to the file` and `Serve static files`.
+
+### Real-time — Ticks, Keyboard and Mouse
+
+```
+Every 50 milliseconds, do the following.
+Add 1 to score.
+End every.
+
+Every 2 seconds, do the following.
+Stop ticking.
+End every.
+
+When key spacebar is pressed, do the following.
+Say Jump.
+End when.
+
+When the mouse is clicked, do the following.
+Say Click.
+End when.
+
+If key arrow left is pressed, do the following.
+Subtract 4 from x.
+End if.
+
+Let across be the mouse x.
+Let down be the mouse y.
+```
+
+Ticks are driven by the window, so a program with a tick loop or an event handler
+keeps running until the window is closed — no `Wait for close.` needed. Key names
+are plain words: `spacebar`, `arrow left`, `enter`, `escape`, `a`.
+
+### Real-time — Canvas and Sprites
+
+```
+Add canvas game area with width 800 and height 600.
+
+Add sprite bird with image examples slash images slash bird.png.
+Set position of bird to 100 by 200.
+Move sprite bird by 0 by 5.
+Let height be the y of bird.
+If sprite bird collides with sprite pipe, do the following.
+Remove sprite bird.
+End if.
+
+Clear canvas.
+Draw rectangle at 100 by 200 with width 50 and height 30 and color red.
+Draw circle at 300 by 150 with radius 20 and color yellow.
+Draw text Score at 10 by 10 with color white.
+```
+
+A sprite without an image becomes a coloured placeholder square, so a game runs
+even before you have any artwork. `Clear canvas` removes the drawn shapes but
+keeps the sprites.
+
+### Cookies, Sessions, Forms and Uploads
+
+```
+Before every request, do the following.
+Add 1 to visits.
+End before.
+
+Define handle login that takes request, do the following.
+Let user be the form value username of request.
+Start a session for request.
+Set the session value name in request to the value of user.
+Set the cookie username of request to the value of user.
+Respond with welcome.
+End define.
+
+Let who be the session value name of request.
+Let remembered be the cookie username of request.
+Let picture be the uploaded file avatar of request.
+Write the value of picture to the file uploaded avatar.
+```
+
+Sessions live on the server and are keyed by an `epp_session` cookie.
+`Before every request` runs before every route handler. Uploaded files are raw
+bytes, and `Write to the file` writes them unchanged.
+
+### Templates
+
+```
+Read the file examples slash template.html and store it in page.
+Let page be the value of page with placeholder name replaced by the value of who.
+Set content type to html.
+Respond with the value of page.
+```
+
+Both `{{name}}` and `{name}` are replaced.
+
+### Websockets
+
+```
+Define handle chat that takes connection, do the following.
+Broadcast the value of message to all connections.
+End define.
+
+Add websocket route slash chat to handle chat.
+```
+
+Inside a websocket handler `message` holds the received text and `connection`
+holds the sender. Use `Send the value of reply to connection.` to answer a single
+client and `Broadcast ... to all connections.` to reach everybody.
+
 ### Games
 
 ```
 Start a jump and run game.
+Start a flappy bird game.
+Start a snake game.
+Start a pong game.
+Start a memory game.
 ```
 
-Launches a 2D side-scrolling platformer with:
+Flappy Bird, Snake, Pong and Memory are ready-made arcade games. `jumper.epp`
+launches the platformer below; `pong_in_epp.epp` shows the same idea written in
+E++ itself with ticks, keys and canvas drawing.
+
+The jump and run game is a 2D side-scrolling platformer with:
 - Arrow keys / WASD to move, Space to jump
 - Procedurally generated levels — every run is unique
 - 6 different chunk patterns (flat runs, staircases, floating islands, gaps, zigzags)
@@ -369,6 +512,18 @@ Launches a 2D side-scrolling platformer with:
 | `vocab.epp` | Latin vocabulary trainer using lists and dictionaries |
 | `api.epp` | REST API webserver with JSON responses |
 | `database.epp` | SQLite database with CRUD operations |
+| `ticker.epp` | Tick loop that counts up and stops itself |
+| `keyboard.epp` | Key events and key questions inside a tick |
+| `sprites.epp` | Sprites with images, movement and collisions |
+| `shapes.epp` | Rectangles, circles and text on a canvas |
+| `pong_in_epp.epp` | A complete Pong game written in E++ itself |
+| `arcade.epp` | The four ready-made arcade games |
+| `widgets.epp` | Checkbox, radio group, slider, image and grid layout |
+| `menus.epp` | Menu bar, dialogs and mouse drawing |
+| `login.epp` | Login with form, session and cookie |
+| `upload.epp` | File upload written straight to disk |
+| `template_page.epp` | HTML template with placeholders |
+| `chat.epp` | Chat server over websockets |
 
 ## Spec Deviations
 
@@ -396,7 +551,23 @@ Launches a 2D side-scrolling platformer with:
 
 **Webserver extensions** — Path parameters (`param name`), query parameters, request body access, `Set content type`, `Enable CORS`, `Serve static files` for building full web applications.
 
-**GUI extensions** — Dropdowns, tables, `Wait N seconds`, `Clear text box`, `Show message`, `Show error` for richer desktop applications.
+**Real-time engine** — `Every N milliseconds`, `Stop ticking`, `When key K is pressed`, `When the mouse is clicked`, `key K is pressed`, `the mouse x`, sprites (`Add sprite`, `Set position of`, `Move sprite`, `the x of`, `collides with`, `Remove sprite`) and canvas drawing (`Add canvas`, `Draw rectangle/circle/text at`, `Clear canvas`). Ticks use the Tk event loop, never `sleep`.
+
+**Arcade games** — `Start a flappy bird game.`, `Start a snake game.`, `Start a pong game.`, `Start a memory game.` in addition to the original jump and run.
+
+**Sessions and cookies** — `Start a session for`, `Set the session value`, `the session value of`, `Set the cookie`, `the cookie of`, plus `Before every request` as a middleware hook.
+
+**Forms and uploads** — `the form value X of request` and `the uploaded file X of request`. Uploaded files are bytes and `Write to the file` writes them unchanged.
+
+**Templates** — `with placeholder NAME replaced by VALUE` fills both `{{name}}` and `{name}`.
+
+**Websockets** — `Add websocket route`, `Send VALUE to CONNECTION`, `Broadcast VALUE to all connections`, with `message` and `connection` in scope inside a handler. Pure stdlib RFC 6455 implementation.
+
+**File paths** — The word `slash` stands for the folder separator in `Read the file`, `Write to the file`, `Serve static files`, `Add image` and `Add sprite`.
+
+**`plus` on text** — Joining text with `plus` inserts a space, matching how the word reads in English. `joined with` concatenates without a space.
+
+**GUI extensions** — Dropdowns, tables, `Wait N seconds`, `Clear text box`, `Show message`, `Show error`, checkboxes, radio groups, sliders, images, menus, grid layout, spacing, alignment, `Ask yes or no` and `Ask for a file` for richer desktop applications.
 
 **Random decimals** — `a random decimal between X and Y` for floating-point random numbers (the original `a random number between` returns integers only).
 
