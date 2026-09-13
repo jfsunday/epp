@@ -1184,7 +1184,7 @@ class Parser:
             self.expect_word("from")
             self.expect_word("the")
             self.expect_word("file")
-            file_path = self.parse_value()
+            file_path = self._parse_file_path()
             self.skip_period()
             return ast.AddImageStmt(name, file_path, line)
 
@@ -1227,7 +1227,7 @@ class Parser:
             if self.at_word("with"):
                 self.advance()  # with
                 self.expect_word("image")
-                image = self.parse_value()
+                image = self._parse_file_path()
             self.skip_period()
             return ast.AddSpriteStmt(name, image, line)
 
@@ -1260,6 +1260,23 @@ class Parser:
         name = self.read_identifier(set())
         self.skip_period()
         return ast.AddStmt(name, value, line)
+
+    def _parse_file_path(self) -> object:
+        """Parse a file path where 'slash' stands for the folder separator.
+
+        'examples slash images slash bird.png' becomes 'examples/images/bird.png'.
+        A path that starts with 'the' is an ordinary expression instead.
+        """
+        if self.at_word("the"):
+            return self.parse_value()
+        line = self.current().line
+        parts: list[str] = []
+        while not self.at_kind(TokenKind.PERIOD) and not self.at_kind(TokenKind.EOF):
+            word = self.advance().value
+            parts.append("/" if word.lower() == "slash" else word)
+        if not parts:
+            raise EppParseError("expected a file name", line)
+        return ast.StringLit("".join(parts), line)
 
     def _parse_route_path(self) -> str:
         """Parse a route path: 'slash' becomes '/', words are joined."""
@@ -1463,6 +1480,11 @@ class Parser:
 
             # If next token is on a different line and not 'and', it's the body comma
             if next_tok.line != comma_tok.line and not (next_tok.kind == TokenKind.WORD and next_tok.value.lower() == "and"):
+                break
+
+            # ", do the following." also starts the body, never a parameter
+            if next_tok.value.lower() == "do" and self.peek(2).value.lower() == "the" \
+                    and self.peek(3).value.lower() == "following":
                 break
 
             # If next token is 'and' followed by something, it's a param separator

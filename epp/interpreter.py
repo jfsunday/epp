@@ -31,11 +31,23 @@ class Interpreter:
         self._web_status = 200
         self._web_content_type = None
         self._database = None  # lazy-init
+        self._realtime = None  # lazy-init
+        self._web_cookies: list[tuple[str, str]] = []
+        self._middleware = None
 
     def run(self, statements: list[object]) -> None:
         """Execute a list of top-level statements."""
         for stmt in statements:
             self._exec(stmt, self.globals)
+        # Programs that only register ticks or event handlers still need the
+        # window to stay open, so enter the Tk mainloop for them.
+        if self._realtime is not None and self._realtime.needs_mainloop():
+            self._visuals.wait_for_close()
+
+    def exec_block(self, body: list[object], env: Environment) -> None:
+        """Execute a list of statements (used by callbacks in realtime.py)."""
+        for stmt in body:
+            self._exec(stmt, env)
 
     def _exec(self, node: object, env: Environment) -> None:
         method_name = f"_exec_{type(node).__name__}"
@@ -106,7 +118,9 @@ class Interpreter:
             if isinstance(left, str) or isinstance(right, str):
                 l = left if isinstance(left, str) else format_value(left)
                 r = right if isinstance(right, str) else format_value(right)
-                return l + r
+                # "plus" reads as an English word, so it joins with a space;
+                # "joined with" is the operator for gluing text together.
+                return f"{l} {r}"
             self._check_number(left, "left side of plus", node.line)
             self._check_number(right, "right side of plus", node.line)
             return left + right
@@ -548,11 +562,15 @@ class Interpreter:
     # ── Game Statements ───────────────────────────────────────────────
 
     def _exec_StartGameStmt(self, node: ast.StartGameStmt, env: Environment) -> None:
-        from .game import launch_game
         root = None
         if self._visuals and self._visuals._root:
             root = self._visuals._root
-        launch_game(interpreter=self, root=root)
+        if node.game_type == "jump and run":
+            from .game import launch_game
+            launch_game(interpreter=self, root=root)
+            return
+        from .arcade import launch_arcade_game
+        launch_arcade_game(node.game_type, interpreter=self, root=root)
 
     # ── Webserver Executors ────────────────────────────────────────────
 
@@ -722,11 +740,16 @@ class Interpreter:
             env.define(node.store_in, content)
 
     def _exec_WriteFileStmt(self, node: ast.WriteFileStmt, env: Environment) -> None:
-        value = format_value(self._eval(node.value, env))
+        value = self._eval(node.value, env)
         file_path = format_value(self._eval(node.file_path, env))
+        # Uploaded files arrive as raw bytes and must not be re-encoded.
+        if isinstance(value, (bytes, bytearray)):
+            mode, payload = "wb", bytes(value)
+        else:
+            mode, payload = "w", format_value(value)
         try:
-            with open(file_path, "w") as f:
-                f.write(value)
+            with open(file_path, mode) as f:
+                f.write(payload)
         except OSError as e:
             raise EppRuntimeError(f"cannot write file '{file_path}': {e}", node.line)
 
@@ -867,6 +890,251 @@ class Interpreter:
         text = format_value(self._eval(node.text, env))
         self._get_visuals(node.line).show_error(text)
 
+    def _exec_AddCheckboxStmt(self, node: ast.AddCheckboxStmt, env: Environment) -> None:
+        label = format_value(self._eval(node.label, env))
+        self._get_visuals(node.line).add_checkbox(node.name, label)
+
+    def _eval_CheckboxValueExpr(self, node: ast.CheckboxValueExpr, env: Environment) -> bool:
+        return self._get_visuals(node.line).checkbox_value(node.name)
+
+    def _exec_AddRadioGroupStmt(self, node: ast.AddRadioGroupStmt, env: Environment) -> None:
+        self._get_visuals(node.line).add_radio_group(node.name, node.options)
+
+    def _eval_RadioGroupValueExpr(self, node: ast.RadioGroupValueExpr, env: Environment) -> str:
+        return self._get_visuals(node.line).radio_group_value(node.name)
+
+    def _exec_AddSliderStmt(self, node: ast.AddSliderStmt, env: Environment) -> None:
+        low = self._eval(node.low, env)
+        high = self._eval(node.high, env)
+        self._check_number(low, "slider start", node.line)
+        self._check_number(high, "slider end", node.line)
+        self._get_visuals(node.line).add_slider(node.name, float(low), float(high))
+
+    def _eval_SliderValueExpr(self, node: ast.SliderValueExpr, env: Environment) -> float:
+        return self._get_visuals(node.line).slider_value(node.name)
+
+    def _exec_AddImageStmt(self, node: ast.AddImageStmt, env: Environment) -> None:
+        file_path = format_value(self._eval(node.file_path, env))
+        self._get_visuals(node.line).add_image(node.name, file_path)
+
+    def _exec_AddMenuStmt(self, node: ast.AddMenuStmt, env: Environment) -> None:
+        self._get_visuals(node.line).add_menu(node.name, node.options)
+
+    def _exec_AddMenuItemStmt(self, node: ast.AddMenuItemStmt, env: Environment) -> None:
+        self._get_visuals(node.line).add_menu_item(node.item, node.menu, node.fn_name)
+
+    def _exec_ArrangeGridStmt(self, node: ast.ArrangeGridStmt, env: Environment) -> None:
+        columns = self._eval(node.columns, env)
+        self._check_number(columns, "number of columns", node.line)
+        self._get_visuals(node.line).arrange_grid(int(columns))
+
+    def _exec_AddSpacingStmt(self, node: ast.AddSpacingStmt, env: Environment) -> None:
+        amount = self._eval(node.amount, env)
+        self._check_number(amount, "spacing", node.line)
+        self._get_visuals(node.line).add_spacing(int(amount))
+
+    def _exec_AlignWidgetStmt(self, node: ast.AlignWidgetStmt, env: Environment) -> None:
+        self._get_visuals(node.line).align_widget(node.kind, node.name, node.alignment)
+
+    def _exec_AskYesNoStmt(self, node: ast.AskYesNoStmt, env: Environment) -> None:
+        message = format_value(self._eval(node.message, env))
+        answer = self._get_visuals(node.line).ask_yes_or_no(message)
+        self._store(env, "answer", answer, node.line)
+
+    def _exec_AskFileStmt(self, node: ast.AskFileStmt, env: Environment) -> None:
+        chosen = self._get_visuals(node.line).ask_for_file(node.mode)
+        self._store(env, "chosen file", chosen, node.line)
+
+    # ── Realtime Executors ───────────────────────────────────────────
+
+    def _get_realtime(self, line: int):
+        if self._realtime is None:
+            from .realtime import Realtime
+            self._realtime = Realtime(self, self._get_visuals(line))
+        return self._realtime
+
+    def _exec_EveryStmt(self, node: ast.EveryStmt, env: Environment) -> None:
+        interval = self._eval(node.interval, env)
+        self._check_number(interval, "tick interval", node.line)
+        self._get_realtime(node.line).add_tick(int(interval), node.body, env)
+
+    def _exec_StopTickingStmt(self, node: ast.StopTickingStmt, env: Environment) -> None:
+        self._get_realtime(node.line).stop_ticking()
+
+    def _exec_WhenKeyStmt(self, node: ast.WhenKeyStmt, env: Environment) -> None:
+        self._get_realtime(node.line).add_key_handler(node.key, node.body, env)
+
+    def _exec_WhenMouseStmt(self, node: ast.WhenMouseStmt, env: Environment) -> None:
+        self._get_realtime(node.line).add_mouse_handler(node.event, node.body, env)
+
+    def _eval_KeyPressedExpr(self, node: ast.KeyPressedExpr, env: Environment) -> bool:
+        return self._get_realtime(node.line).is_key_pressed(node.key)
+
+    def _eval_MouseCoordExpr(self, node: ast.MouseCoordExpr, env: Environment) -> float:
+        return self._get_realtime(node.line).mouse_coord(node.axis)
+
+    def _exec_AddCanvasStmt(self, node: ast.AddCanvasStmt, env: Environment) -> None:
+        width = self._eval(node.width, env)
+        height = self._eval(node.height, env)
+        self._check_number(width, "canvas width", node.line)
+        self._check_number(height, "canvas height", node.line)
+        self._get_visuals(node.line).add_canvas(node.name, int(width), int(height))
+
+    def _exec_AddSpriteStmt(self, node: ast.AddSpriteStmt, env: Environment) -> None:
+        image = None
+        if node.image is not None:
+            image = format_value(self._eval(node.image, env))
+        self._get_realtime(node.line).add_sprite(node.name, image, node.line)
+
+    def _exec_SetSpritePositionStmt(self, node: ast.SetSpritePositionStmt, env: Environment) -> None:
+        x = self._eval(node.x, env)
+        y = self._eval(node.y, env)
+        self._check_number(x, "sprite x", node.line)
+        self._check_number(y, "sprite y", node.line)
+        self._get_realtime(node.line).set_sprite_position(node.name, float(x), float(y), node.line)
+
+    def _exec_MoveSpriteStmt(self, node: ast.MoveSpriteStmt, env: Environment) -> None:
+        dx = self._eval(node.dx, env)
+        dy = self._eval(node.dy, env)
+        self._check_number(dx, "sprite step sideways", node.line)
+        self._check_number(dy, "sprite step downwards", node.line)
+        self._get_realtime(node.line).move_sprite(node.name, float(dx), float(dy), node.line)
+
+    def _eval_SpriteCoordExpr(self, node: ast.SpriteCoordExpr, env: Environment) -> float:
+        return self._get_realtime(node.line).sprite_coord(node.name, node.axis, node.line)
+
+    def _eval_SpriteCollidesExpr(self, node: ast.SpriteCollidesExpr, env: Environment) -> bool:
+        return self._get_realtime(node.line).sprites_collide(node.left, node.right, node.line)
+
+    def _exec_RemoveSpriteStmt(self, node: ast.RemoveSpriteStmt, env: Environment) -> None:
+        self._get_realtime(node.line).remove_sprite(node.name, node.line)
+
+    def _exec_DrawRectangleStmt(self, node: ast.DrawRectangleStmt, env: Environment) -> None:
+        x = self._eval(node.x, env)
+        y = self._eval(node.y, env)
+        width = self._eval(node.width, env)
+        height = self._eval(node.height, env)
+        for value, what in ((x, "x"), (y, "y"), (width, "width"), (height, "height")):
+            self._check_number(value, f"rectangle {what}", node.line)
+        color = format_value(self._eval(node.color, env))
+        self._get_realtime(node.line).draw_rectangle(x, y, width, height, color)
+
+    def _exec_DrawCanvasCircleStmt(self, node: ast.DrawCanvasCircleStmt, env: Environment) -> None:
+        x = self._eval(node.x, env)
+        y = self._eval(node.y, env)
+        radius = self._eval(node.radius, env)
+        for value, what in ((x, "x"), (y, "y"), (radius, "radius")):
+            self._check_number(value, f"circle {what}", node.line)
+        color = format_value(self._eval(node.color, env))
+        self._get_realtime(node.line).draw_circle(x, y, radius, color)
+
+    def _exec_DrawCanvasTextStmt(self, node: ast.DrawCanvasTextStmt, env: Environment) -> None:
+        text = format_value(self._eval(node.text, env))
+        x = self._eval(node.x, env)
+        y = self._eval(node.y, env)
+        self._check_number(x, "text x", node.line)
+        self._check_number(y, "text y", node.line)
+        color = format_value(self._eval(node.color, env))
+        self._get_realtime(node.line).draw_text(text, x, y, color)
+
+    def _exec_ClearCanvasStmt(self, node: ast.ClearCanvasStmt, env: Environment) -> None:
+        self._get_realtime(node.line).clear_canvas()
+
+    # ── Cookie, Session, Form and Upload Support ─────────────────────
+
+    def _request_of(self, var_name: str, env: Environment, line: int) -> dict:
+        request = env.get(var_name, line)
+        if not isinstance(request, dict):
+            raise EppRuntimeError(f"'{var_name}' is not a request dictionary", line)
+        return request
+
+    def _exec_SetCookieStmt(self, node: ast.SetCookieStmt, env: Environment) -> None:
+        request = self._request_of(node.request_var, env, node.line)
+        value = format_value(self._eval(node.value, env))
+        request.setdefault("__cookies", {})[node.cookie_name] = value
+        self._web_cookies.append((node.cookie_name, value))
+
+    def _eval_CookieExpr(self, node: ast.CookieExpr, env: Environment) -> str:
+        request = self._request_of(node.request_var, env, node.line)
+        return request.get("__cookies", {}).get(node.cookie_name, "")
+
+    def _exec_StartSessionStmt(self, node: ast.StartSessionStmt, env: Environment) -> None:
+        request = self._request_of(node.request_var, env, node.line)
+        self._get_webserver(node.line).start_session(request)
+
+    def _exec_SetSessionValueStmt(self, node: ast.SetSessionValueStmt, env: Environment) -> None:
+        request = self._request_of(node.request_var, env, node.line)
+        session = request.get("__session")
+        if session is None:
+            session = self._get_webserver(node.line).start_session(request)
+        session[node.key] = format_value(self._eval(node.value, env))
+
+    def _eval_SessionValueExpr(self, node: ast.SessionValueExpr, env: Environment) -> object:
+        request = self._request_of(node.request_var, env, node.line)
+        return (request.get("__session") or {}).get(node.key, "")
+
+    def _eval_FormValueExpr(self, node: ast.FormValueExpr, env: Environment) -> object:
+        request = self._request_of(node.request_var, env, node.line)
+        return request.get("__form", {}).get(node.field_name, "")
+
+    def _eval_UploadedFileExpr(self, node: ast.UploadedFileExpr, env: Environment) -> object:
+        request = self._request_of(node.request_var, env, node.line)
+        upload = request.get("__files", {}).get(node.field_name)
+        if upload is None:
+            raise EppRuntimeError(f"no uploaded file called '{node.field_name}'", node.line)
+        return upload["content"]
+
+    def _eval_ReplacePlaceholderExpr(self, node: ast.ReplacePlaceholderExpr, env: Environment) -> str:
+        text = format_value(self._eval(node.text, env))
+        value = format_value(self._eval(node.value, env))
+        # Templates may use either {{name}} or {name}.
+        text = text.replace("{{" + node.placeholder + "}}", value)
+        return text.replace("{" + node.placeholder + "}", value)
+
+    def _exec_BeforeRequestStmt(self, node: ast.BeforeRequestStmt, env: Environment) -> None:
+        def _middleware(request: dict) -> None:
+            local_env = Environment(parent=self.globals)
+            local_env.define("request", request)
+            try:
+                self.exec_block(node.body, local_env)
+            except _ReturnSignal:
+                pass
+
+        self._get_webserver(node.line).set_middleware(_middleware)
+
+    # ── Websocket Executors ──────────────────────────────────────────
+
+    def _exec_AddWebsocketRouteStmt(self, node: ast.AddWebsocketRouteStmt, env: Environment) -> None:
+        self._get_webserver(node.line).add_websocket_route(node.path, node.handler_name)
+
+    def _exec_SendToConnectionStmt(self, node: ast.SendToConnectionStmt, env: Environment) -> None:
+        text = format_value(self._eval(node.value, env))
+        connection = env.get(node.connection, node.line)
+        self._get_webserver(node.line).get_websocket_hub().send(connection, text)
+
+    def _exec_BroadcastStmt(self, node: ast.BroadcastStmt, env: Environment) -> None:
+        text = format_value(self._eval(node.value, env))
+        self._get_webserver(node.line).get_websocket_hub().broadcast(text)
+
+    def call_websocket_handler(self, name: str, connection: object, text: str) -> None:
+        """Run a websocket handler with 'connection' and 'message' in scope."""
+        if name not in self.functions:
+            raise EppRuntimeError(f"the function '{name}' has not been defined", 0)
+
+        func = self.functions[name]
+        local_env = Environment(parent=self.globals)
+        local_env.define("connection", connection)
+        local_env.define("message", text)
+        # A handler may also name its own parameters: one for the connection,
+        # an optional second one for the message.
+        for param_name, value in zip(func.params, (connection, text)):
+            local_env.define(param_name, value)
+
+        try:
+            self.exec_block(func.body, local_env)
+        except _ReturnSignal:
+            pass
+
     # ── Function Calling ─────────────────────────────────────────────
 
     def call_function(self, name: str, arg_nodes: list[object], env: Environment, line: int) -> object:
@@ -921,6 +1189,14 @@ class Interpreter:
         return 0.0
 
     # ── Helpers ──────────────────────────────────────────────────────
+
+    @staticmethod
+    def _store(env: Environment, name: str, value: object, line: int) -> None:
+        """Create the variable, or overwrite it if it already exists."""
+        if env.has(name):
+            env.set(name, value, line)
+        else:
+            env.define(name, value)
 
     @staticmethod
     def _check_number(value: object, context: str, line: int) -> None:
