@@ -219,8 +219,9 @@ class Parser:
                     self.advance()  # collides
                     self.expect_word("with")
                     self.expect_word("sprite")
-                    right_name = self.read_identifier(stop_words)
-                    return ast.SpriteCollidesExpr(left_name, right_name, line)
+                    right_name = self.read_identifier(stop_words | self._EXPR_OPS)
+                    return self._maybe_chain_ops(
+                        ast.SpriteCollidesExpr(left_name, right_name, line), stop_words)
                 self.pos = saved
 
         # "item N of LIST"
@@ -418,32 +419,32 @@ class Parser:
                 self.advance()  # cookie
                 cookie_name = self.read_identifier({"of"} | stop_words)
                 self.expect_word("of")
-                request_var = self.read_identifier(stop_words)
-                return ast.CookieExpr(cookie_name, request_var, line)
+                request_var = self.read_identifier(stop_words | self._EXPR_OPS)
+                return self._maybe_chain_ops(ast.CookieExpr(cookie_name, request_var, line), stop_words)
             elif peek_val == "session":
                 self.advance()  # the
                 self.advance()  # session
                 self.expect_word("value")
                 key = self.read_identifier({"of"} | stop_words)
                 self.expect_word("of")
-                request_var = self.read_identifier(stop_words)
-                return ast.SessionValueExpr(key, request_var, line)
+                request_var = self.read_identifier(stop_words | self._EXPR_OPS)
+                return self._maybe_chain_ops(ast.SessionValueExpr(key, request_var, line), stop_words)
             elif peek_val == "form":
                 self.advance()  # the
                 self.advance()  # form
                 self.expect_word("value")
                 field_name = self.read_identifier({"of"} | stop_words)
                 self.expect_word("of")
-                request_var = self.read_identifier(stop_words)
-                return ast.FormValueExpr(field_name, request_var, line)
+                request_var = self.read_identifier(stop_words | self._EXPR_OPS)
+                return self._maybe_chain_ops(ast.FormValueExpr(field_name, request_var, line), stop_words)
             elif peek_val == "uploaded":
                 self.advance()  # the
                 self.advance()  # uploaded
                 self.expect_word("file")
                 field_name = self.read_identifier({"of"} | stop_words)
                 self.expect_word("of")
-                request_var = self.read_identifier(stop_words)
-                return ast.UploadedFileExpr(field_name, request_var, line)
+                request_var = self.read_identifier(stop_words | self._EXPR_OPS)
+                return self._maybe_chain_ops(ast.UploadedFileExpr(field_name, request_var, line), stop_words)
 
             # ── Realtime value expressions ──
             elif peek_val == "mouse":
@@ -455,7 +456,7 @@ class Parser:
                 self.advance()  # the
                 axis = self.advance().value.lower()  # x / y
                 self.advance()  # of
-                name = self.read_identifier(stop_words)
+                name = self.read_identifier(stop_words | self._EXPR_OPS)
                 return self._maybe_chain_ops(ast.SpriteCoordExpr(name, axis, line), stop_words)
 
             # ── GUI value expressions ──
@@ -467,18 +468,18 @@ class Parser:
             elif peek_val == "checkbox":
                 self.advance()  # the
                 self.advance()  # checkbox
-                name = self.read_identifier(stop_words)
-                return ast.CheckboxValueExpr(name, line)
+                name = self.read_identifier(stop_words | self._EXPR_OPS)
+                return self._maybe_chain_ops(ast.CheckboxValueExpr(name, line), stop_words)
             elif peek_val == "radio":
                 self.advance()  # the
                 self.advance()  # radio
                 self.expect_word("group")
-                name = self.read_identifier(stop_words)
-                return ast.RadioGroupValueExpr(name, line)
+                name = self.read_identifier(stop_words | self._EXPR_OPS)
+                return self._maybe_chain_ops(ast.RadioGroupValueExpr(name, line), stop_words)
             elif peek_val == "slider":
                 self.advance()  # the
                 self.advance()  # slider
-                name = self.read_identifier(stop_words)
+                name = self.read_identifier(stop_words | self._EXPR_OPS)
                 return self._maybe_chain_ops(ast.SliderValueExpr(name, line), stop_words)
 
         # Free text (string literal) — greedy until PERIOD/COMMA/EOF or stop_word
@@ -1261,18 +1262,21 @@ class Parser:
         self.skip_period()
         return ast.AddStmt(name, value, line)
 
-    def _parse_file_path(self) -> object:
+    def _parse_file_path(self, stop_words: set[str] | None = None) -> object:
         """Parse a file path where 'slash' stands for the folder separator.
 
         'examples slash images slash bird.png' becomes 'examples/images/bird.png'.
         A path that starts with 'the' is an ordinary expression instead.
         """
         if self.at_word("the"):
-            return self.parse_value()
+            return self.parse_value(stop_words or set())
         line = self.current().line
         parts: list[str] = []
         while not self.at_kind(TokenKind.PERIOD) and not self.at_kind(TokenKind.EOF):
             word = self.advance().value
+            if stop_words and word.lower() in stop_words:
+                self.pos -= 1
+                break
             parts.append("/" if word.lower() == "slash" else word)
         if not parts:
             raise EppParseError("expected a file name", line)
@@ -2039,7 +2043,7 @@ class Parser:
         self.advance()  # read
         self.expect_word("the")
         self.expect_word("file")
-        file_path = self.parse_value({"and"})
+        file_path = self._parse_file_path({"and"})
         self.expect_word("and")
         self.expect_word("store")
         self.expect_word("it")
@@ -2055,7 +2059,7 @@ class Parser:
         self.expect_word("to")
         self.expect_word("the")
         self.expect_word("file")
-        file_path = self.parse_value()
+        file_path = self._parse_file_path()
         self.skip_period()
         return ast.WriteFileStmt(value, file_path, line)
 
@@ -2076,7 +2080,7 @@ class Parser:
         self.expect_word("from")
         self.expect_word("the")
         self.expect_word("folder")
-        folder = self.parse_value()
+        folder = self._parse_file_path()
         self.skip_period()
         return ast.ServeStaticStmt(folder, line)
 
